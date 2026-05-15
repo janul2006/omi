@@ -55,6 +55,14 @@ async function startServer() {
       }
     });
 
+    socket.on("fill_bots", ({ roomId }) => {
+      const room = rooms.get(roomId);
+      if (room) {
+        room.fillWithBots(io);
+        room.checkBotTurn(io);
+      }
+    });
+
     socket.on("set_trump", ({ roomId, playerId, suit }) => {
       const room = rooms.get(roomId);
       if (room) {

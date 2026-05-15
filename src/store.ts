@@ -14,6 +14,7 @@ interface GameStore {
   setTrump: (suit: Suit) => void;
   playCard: (cardId: string) => void;
   addBot: () => void;
+  fillBots: () => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -27,8 +28,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const socket = io();
     const storedPlayerId = localStorage.getItem(`omi_player_id_${roomId}`);
     
-    socket.on('connect', () => {
+    socket.on("connect", () => {
+      console.log("Connected to tactical server");
       socket.emit('join_room', { roomId, name, playerId: storedPlayerId, isSpectator });
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("Connection failed! Vercel likely blocked the WebSocket:", err);
     });
 
     socket.on('joined', ({ playerId }) => {
@@ -59,6 +65,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { socket, game } = get();
     if (socket && game) {
       socket.emit('add_bot', { roomId: game.roomId });
+    }
+  },
+
+  fillBots: () => {
+    const { socket, game } = get();
+    if (socket && game) {
+      socket.emit('fill_bots', { roomId: game.roomId });
     }
   },
 

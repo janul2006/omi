@@ -7,6 +7,8 @@ import { Trophy, MessageSquare, Shield, Clock, QrCode, Copy, Link, Eye, Share2 }
 import { cn } from '../lib/utils.js';
 import { QRCodeCanvas } from 'qrcode.react';
 
+import { soundManager } from '../lib/sounds.js';
+
 const suitSymbols: Record<Suit, string> = {
   CLUBS: '♣',
   DIAMONDS: '♦',
@@ -15,7 +17,30 @@ const suitSymbols: Record<Suit, string> = {
 };
 
 export const GameTable: React.FC = () => {
-  const { game, me, ready, setTrump, playCard, isSpectator } = useGameStore();
+  const { game, me, ready, setTrump, playCard, fillBots, isSpectator } = useGameStore();
+
+  // Play sounds based on state changes
+  React.useEffect(() => {
+    if (!game) return;
+    
+    // Card played
+    const currentTrickLength = game.currentTrick.length;
+    if (currentTrickLength > 0) {
+        soundManager.play('CARD_PLAY');
+    }
+  }, [game?.currentTrick.length]);
+
+  React.useEffect(() => {
+    if (game?.phase === 'PLAYING') {
+        soundManager.play('GAME_START');
+    }
+  }, [game?.phase]);
+
+  React.useEffect(() => {
+    if (game?.lastTrickResult) {
+        soundManager.play('TRICK_WIN');
+    }
+  }, [game?.lastTrickResult?.winnerName]);
 
   if (!game || !me) return null;
 
@@ -191,36 +216,64 @@ export const GameTable: React.FC = () => {
         </div>
 
         {/* The Table Stage */}
-        <div className="flex-1 flex items-center justify-center px-12 py-10 pointer-events-none">
-          <div className="relative w-full max-w-5xl aspect-[16/9] bg-[#0E3524] rounded-[300px] border-[12px] border-[#1C1C1E] shadow-[0_0_120px_rgba(0,0,0,0.8),inset_0_0_100px_rgba(0,0,0,0.6)] flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center px-4 py-4 pointer-events-none overflow-hidden">
+          <div className="relative w-full max-w-4xl aspect-[16/10] bg-[#0E3524] rounded-[240px] border-[12px] border-[#1C1C1E] shadow-[0_0_80px_rgba(0,0,0,0.6),inset_0_0_100px_rgba(0,0,0,0.5)] flex items-center justify-center">
              {/* Center Play Area */}
-             <div className="relative w-[35%] aspect-square rounded-full flex items-center justify-center border border-white/5 bg-black/5">
+             <div className="relative w-[28%] aspect-square rounded-full flex items-center justify-center border border-white/5 bg-black/5">
                 <AnimatePresence>
                     {game.currentTrick.map((play) => {
                         const relIdx = getRelativePos(game.players.find(p => p.id === play.playerId)!.pos);
                         const offsets = [
-                            { y: 70, x: 0, r: 0 },   // Bottom
-                            { y: 0, x: -70, r: 0 }, // Left
-                            { y: -70, x: 0, r: 0 },  // Top
-                            { y: 0, x: 70, r: 0 },   // Right
+                            { y: 45, x: 0, r: 0 },   // Bottom
+                            { y: 0, x: -45, r: 0 }, // Left
+                            { y: -45, x: 0, r: 0 },  // Top
+                            { y: 0, x: 45, r: 0 },   // Right
+                        ];
+
+                        const isResolving = !!game.lastTrickResult;
+                        const winner = playersByPos.find(p => p?.name === game.lastTrickResult?.winnerName);
+                        const winnerRelIdx = winner ? getRelativePos(winner.pos) : -1;
+                        
+                        // Winner directions
+                        const winnerOffsets = [
+                            { y: 500, x: 0 },   // Bottom
+                            { y: 0, x: -500 }, // Left
+                            { y: -500, x: 0 },  // Top
+                            { y: 0, x: 500 },   // Right
                         ];
 
                         return (
                             <motion.div
                                 key={`${play.playerId}-${play.card.id}`}
                                 initial={{ scale: 0.5, opacity: 0, y: offsets[relIdx].y * 1.5, x: offsets[relIdx].x * 1.5 }}
-                                animate={{ scale: 1, opacity: 1, y: offsets[relIdx].y, x: offsets[relIdx].x }}
-                                transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                                animate={isResolving && winnerRelIdx !== -1 ? { 
+                                    scale: 0.4, 
+                                    opacity: 0, 
+                                    y: winnerOffsets[winnerRelIdx].y, 
+                                    x: winnerOffsets[winnerRelIdx].x 
+                                } : { 
+                                    scale: 1, 
+                                    opacity: 1, 
+                                    y: offsets[relIdx].y, 
+                                    x: offsets[relIdx].x 
+                                }}
+                                exit={{ scale: 0, opacity: 0 }}
+                                transition={{ 
+                                    type: isResolving ? 'tween' : 'spring', 
+                                    stiffness: 250, 
+                                    damping: 25,
+                                    duration: isResolving ? 0.6 : undefined
+                                }}
                                 className="absolute z-20 pointer-events-auto"
                             >
-                                <Card card={play.card} disabled className="shadow-2xl scale-[0.85] border-2 border-slate-100" />
+                                <Card card={play.card} disabled className="shadow-2xl scale-[0.65] border-2 border-slate-100" />
                             </motion.div>
                         );
                     })}
                 </AnimatePresence>
                 {game.currentTrick.length === 0 && game.phase === 'PLAYING' && (
-                    <div className="text-[10px] font-black uppercase text-white/5 tracking-[0.5em] text-center max-w-[120px]">
-                        Field Clear
+                    <div className="text-[9px] font-black uppercase text-white/5 tracking-[0.4em] text-center max-w-[100px]">
+                        Tactical Field
                     </div>
                 )}
              </div>
@@ -229,30 +282,30 @@ export const GameTable: React.FC = () => {
              {playersByPos.map((p: Player | null, i) => {
                 if (!p) return null;
                 const posStyles = [
-                    "-bottom-10 left-1/2 -translate-x-1/2", // Bottom
-                    "-left-10 top-1/2 -translate-y-1/2",   // Left
-                    "-top-10 left-1/2 -translate-x-1/2",    // Top
-                    "-right-10 top-1/2 -translate-y-1/2",  // Right
+                    "-bottom-8 left-1/2 -translate-x-1/2", // Bottom
+                    "-left-8 top-1/2 -translate-y-1/2",   // Left
+                    "-top-8 left-1/2 -translate-x-1/2",    // Top
+                    "-right-8 top-1/2 -translate-y-1/2",  // Right
                 ];
                 const isCurrent = game.currentTurnIdx === p.pos;
                 const teamColor = p.team === me.team ? 'border-blue-500' : 'border-rose-500';
 
                 return (
-                    <div key={p.id} className={`absolute ${posStyles[i]} z-20 flex flex-col items-center gap-3`}>
+                    <div key={p.id} className={`absolute ${posStyles[i]} z-20 flex flex-col items-center gap-2`}>
                         <div className={cn(
-                            "w-14 h-14 rounded-full border-2 p-1 bg-[#121214] overflow-hidden transition-all duration-300",
-                            isCurrent ? "scale-110 shadow-[0_0_25px_rgba(16,185,129,0.5)] border-emerald-500" : `${teamColor} opacity-90 shadow-xl`
+                            "w-12 h-12 rounded-full border-2 p-0.5 bg-[#121214] overflow-hidden transition-all duration-300",
+                            isCurrent ? "scale-110 shadow-[0_0_20px_rgba(16,185,129,0.5)] border-emerald-500" : `${teamColor} opacity-90 shadow-lg`
                         )}>
-                            <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center font-black text-lg text-slate-100">
+                            <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center font-black text-sm text-slate-100">
                                 {p.name[0].toUpperCase()}
                             </div>
                         </div>
                         <div className={cn(
-                            "px-4 py-1 rounded-full border border-slate-800/50 backdrop-blur-md flex flex-col items-center min-w-[80px]",
-                            isCurrent ? "bg-emerald-500/20 border-emerald-500/40" : "bg-black/60"
+                            "px-3 py-1 rounded-full border border-slate-800/50 backdrop-blur-md flex flex-col items-center min-w-[70px]",
+                            isCurrent ? "bg-emerald-500/10 border-emerald-500/30" : "bg-black/50"
                         )}>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-100 truncate max-w-[100px]">{p.name}</span>
-                            <div className="flex gap-1 mt-1">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-100 truncate max-w-[80px]">{p.name}</span>
+                            <div className="flex gap-0.5 mt-1">
                                 {Array(p.handSize).fill(0).map((_, idx) => (
                                     <div key={idx} className="w-1 h-1 bg-white/20 rounded-full" />
                                 ))}
@@ -266,8 +319,8 @@ export const GameTable: React.FC = () => {
 
         {/* Bottom Section: Hand & Status */}
         <div className={cn(
-            "h-64 bg-gradient-to-t from-black/80 to-transparent flex flex-col items-center justify-end pb-8 z-30",
-            isSpectator ? "pointer-events-none opacity-60 grayscale pt-10" : ""
+            "h-56 bg-gradient-to-t from-black/80 to-transparent flex flex-col items-center justify-end pb-6 z-30 shrink-0",
+            isSpectator ? "pointer-events-none opacity-60 grayscale" : ""
         )}>
           {isSpectator ? (
              <div className="mb-12 text-center">
@@ -277,7 +330,7 @@ export const GameTable: React.FC = () => {
                 </div>
              </div>
           ) : (
-            <div className="flex -space-x-10 sm:-space-x-6 pointer-events-auto">
+            <div className="flex -space-x-12 sm:-space-x-8 pointer-events-auto items-center justify-center">
                 <AnimatePresence>
                     {me.hand.map((card, idx) => {
                         const isLegal = () => {
@@ -288,20 +341,23 @@ export const GameTable: React.FC = () => {
                             return true;
                         };
                         const legal = isLegal();
+                        const fanRotation = (idx - (me.hand.length / 2)) * 4;
 
                         return (
                             <motion.div
                                 key={card.id}
-                                initial={{ y: 150, rotate: (idx - (me.hand.length / 2)) * 6 }}
+                                initial={{ y: 200, rotate: fanRotation }}
                                 animate={{ 
                                     y: 0, 
-                                    rotate: (idx - (me.hand.length / 2)) * 3, 
-                                    opacity: legal ? 1 : 0.3,
-                                    filter: legal ? 'brightness(1)' : 'brightness(0.5) contrast(1.2)'
+                                    rotate: fanRotation, 
+                                    opacity: legal ? 1 : 0.25,
+                                    scale: legal ? 0.75 : 0.7,
+                                    filter: legal ? 'brightness(1)' : 'brightness(0.3) grayscale(0.5)'
                                 }}
-                                whileHover={legal ? { y: -40, rotate: 0, zIndex: 50, scale: 1.1 } : {}}
+                                whileHover={legal ? { y: -50, rotate: 0, zIndex: 100, scale: 0.9 } : {}}
                                 exit={{ y: -100, opacity: 0 }}
-                                className="transition-all duration-300"
+                                className="transition-all duration-300 origin-bottom"
+                                style={{ zIndex: idx }}
                             >
                                 <Card 
                                     card={card} 
@@ -309,7 +365,7 @@ export const GameTable: React.FC = () => {
                                     disabled={!isMyTurn || !legal}
                                     className={cn(
                                         "ring-offset-4 ring-offset-[#0A0A0B] transition-all duration-300",
-                                        isMyTurn && legal && "ring-2 ring-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                                        isMyTurn && legal && "hover:ring-2 hover:ring-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
                                     )}
                                 />
                             </motion.div>
@@ -380,12 +436,20 @@ export const GameTable: React.FC = () => {
                                 Signal Ready
                             </button>
                             {game.players.length < 4 && (
-                                <button
-                                    onClick={() => useGameStore.getState().addBot()}
-                                    className="w-full bg-slate-800 hover:bg-slate-700 py-4 rounded-2xl font-black tracking-widest transition-all uppercase text-xs text-slate-400"
-                                >
-                                    Add AI Agent
-                                </button>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        onClick={() => useGameStore.getState().addBot()}
+                                        className="w-full bg-slate-800 hover:bg-slate-700 py-4 rounded-2xl font-black tracking-widest transition-all uppercase text-[10px] text-slate-400 border border-slate-700/50"
+                                    >
+                                        +1 AI
+                                    </button>
+                                    <button
+                                        onClick={() => fillBots()}
+                                        className="w-full bg-slate-800 hover:bg-slate-700 py-4 rounded-2xl font-black tracking-widest transition-all uppercase text-[10px] text-slate-400 border border-slate-700/50"
+                                    >
+                                        Auto-Fill
+                                    </button>
+                                </div>
                             )}
                         </div>
                     </div>

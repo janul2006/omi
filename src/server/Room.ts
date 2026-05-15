@@ -242,6 +242,13 @@ export class Room {
     if (this.state.history.length > 50) this.state.history.shift();
   }
 
+  fillWithBots(io: Server) {
+    while (this.state.players.length < 4) {
+        this.addBot();
+    }
+    this.broadcastState(io);
+  }
+
   addBot() {
     if (this.state.players.length >= 4) return;
     const botId = `bot-${uuidv4()}`;
@@ -282,10 +289,10 @@ export class Room {
       this.broadcastState(io);
       this.checkBotTurn(io);
     } else if (this.state.phase === 'PLAYING') {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 1200 + Math.random() * 800));
       const hand = this.playerHands.get(currentPlayer.id)!;
-      const legalCards = hand.filter(card => GameEngine.isMoveLegal(card, hand, this.state.currentTrick));
-      const cardToPlay = legalCards[Math.floor(Math.random() * legalCards.length)];
+      const cardToPlay = GameEngine.getBotPlay(hand, this.state.currentTrick, this.state.trumpSuit, this.state.currentTurnIdx, this.state.players);
+      
       if (cardToPlay) {
         await this.playCard(currentPlayer.id, cardToPlay.id, io);
       }
