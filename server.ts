@@ -19,7 +19,7 @@ async function startServer() {
   io.on("connection", (socket) => {
     console.log("New client connected", socket.id);
 
-    socket.on("join_room", ({ roomId, name, playerId, isSpectator }: { roomId: string, name: string, playerId?: string, isSpectator?: boolean }) => {
+    socket.on("join_room", ({ roomId, name, avatar, playerId, isSpectator, selectedBots }: { roomId: string, name: string, avatar?: string, playerId?: string, isSpectator?: boolean, selectedBots?: any[] }) => {
       let room = rooms.get(roomId);
       if (!room) {
         room = new Room(roomId);
@@ -27,8 +27,16 @@ async function startServer() {
       }
 
       try {
-        const id = room.addPlayer(socket, name, playerId, isSpectator);
+        const id = room.addPlayer(socket, name, avatar, playerId, isSpectator);
         socket.join(roomId);
+        
+        // Add selected bots if this is the room creator or room is empty
+        if (selectedBots && selectedBots.length > 0 && room.state.players.length <= 4) {
+          selectedBots.forEach((bot: any) => {
+            room?.addBot(io, bot.difficulty, bot.name);
+          });
+        }
+
         room.broadcastState(io);
         socket.emit("joined", { playerId: id });
         console.log(`Player ${name} (${id}) joined room ${roomId} (Spectator: ${isSpectator})`);

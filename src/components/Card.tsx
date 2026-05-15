@@ -32,44 +32,48 @@ export const Card: React.FC<CardProps> = ({ card, faceDown, onClick, className, 
         layout
         whileHover={!disabled ? { y: -10 } : {}}
         className={cn(
-          "w-20 h-28 sm:w-24 sm:h-34 bg-[#1e1e21] border-2 border-slate-700/50 rounded-lg shadow-xl flex items-center justify-center relative overflow-hidden",
+          "w-20 h-28 sm:w-26 sm:h-38 bg-gradient-to-br from-blue-500 to-indigo-700 rounded-2xl shadow-xl flex items-center justify-center relative overflow-hidden border-[3px] border-white/20",
           className
         )}
       >
-        <div className="absolute inset-2 border border-slate-600/20 rounded" />
-        <div className="w-full h-full flex items-center justify-center">
-            <div className="w-10 h-10 bg-slate-800 rounded-full opacity-30" />
-        </div>
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:8px_8px]" />
+        <div className="text-white/20 font-black text-2xl tracking-tighter italic">OMI</div>
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-white/10 to-transparent skew-y-[-12deg] origin-top-left pointer-events-none" />
       </motion.div>
     );
   }
 
+  const isRed = card.suit === 'HEARTS' || card.suit === 'DIAMONDS';
+
   return (
     <motion.div
       layout
-      whileHover={!disabled ? { y: -20, scale: 1.05 } : {}}
+      whileHover={!disabled ? { y: -30, scale: 1.1, rotate: 2 } : {}}
       onClick={!disabled ? onClick : undefined}
       className={cn(
-        "w-20 h-28 sm:w-24 sm:h-34 bg-white border border-slate-200 rounded-lg shadow-lg flex flex-col p-2 cursor-pointer select-none relative group",
+        "w-20 h-28 sm:w-26 sm:h-38 bg-white border-[3px] rounded-2xl shadow-xl flex flex-col p-3 cursor-pointer select-none relative group transition-colors",
+        isRed ? "border-rose-100" : "border-slate-100",
         disabled && "opacity-40 grayscale-[0.5] cursor-not-allowed",
         className
       )}
     >
-      <div className={cn("text-sm font-black leading-none", suitColors[card.suit])}>
+      <div className="absolute inset-0 opacity-5 pointer-events-none rounded-2xl bg-[url('https://www.transparenttextures.com/patterns/white-diamond.png')]" />
+
+      <div className={cn("text-lg font-black leading-none flex flex-col items-center", suitColors[card.suit])}>
         {card.rank}
-      </div>
-      <div className={cn("text-xs leading-none", suitColors[card.suit])}>
-        {suitSymbols[card.suit]}
+        <span className="text-[10px]">{suitSymbols[card.suit]}</span>
       </div>
       
-      <div className={cn("absolute bottom-2 right-2 text-xl rotate-180", suitColors[card.suit])}>
-        <div className="text-sm font-black leading-none">{card.rank}</div>
-        <div className="text-xs leading-none">{suitSymbols[card.suit]}</div>
+      <div className={cn("absolute bottom-3 right-3 flex flex-col items-center rotate-180", suitColors[card.suit])}>
+        <div className="text-lg font-black leading-none">{card.rank}</div>
+        <div className="text-[10px]">{suitSymbols[card.suit]}</div>
       </div>
 
-      <div className={cn("flex-grow flex items-center justify-center text-4xl", suitColors[card.suit])}>
+      <div className={cn("flex-grow flex items-center justify-center text-5xl", suitColors[card.suit])}>
           {suitSymbols[card.suit]}
       </div>
+
+      <div className="absolute inset-2 border border-dashed border-black/5 rounded-xl pointer-events-none" />
     </motion.div>
   );
 };

@@ -12,6 +12,7 @@ export type Phase = 'LOBBY' | 'TRUMP_CALLING' | 'PLAYING' | 'FINISHED';
 export interface Player {
   id: string;
   name: string;
+  avatar?: string;
   isReady: boolean;
   handSize: number;
   team: 0 | 1;

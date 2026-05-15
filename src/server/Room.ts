@@ -1,6 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
-import { Card, ChatMessage, GameState, Phase, Player, PrivatePlayerState, Suit } from '../types.js';
+import { BotDifficulty, Card, ChatMessage, GameState, Phase, Player, PrivatePlayerState, Suit } from '../types.js';
 import { GameEngine } from './GameEngine.js';
 
 export class Room {
@@ -33,12 +33,13 @@ export class Room {
     };
   }
 
-  addPlayer(socket: Socket, name: string, existingPlayerId?: string, isSpectator?: boolean): string {
+  addPlayer(socket: Socket, name: string, avatar?: string, existingPlayerId?: string, isSpectator?: boolean): string {
     if (isSpectator) {
       const spectatorId = uuidv4();
       const spectator: Player = {
         id: spectatorId,
         name: `${name} (Eye)`,
+        avatar: avatar || '👁️',
         isReady: true,
         handSize: 0,
         team: 0,
@@ -56,6 +57,7 @@ export class Room {
     
     if (existingPlayer) {
       existingPlayer.isConnected = true;
+      if (avatar) existingPlayer.avatar = avatar;
       this.playerSockets.set(existingPlayer.id, socket.id);
       this.socketSubscribers.set(socket.id, existingPlayer.id);
       this.addLog(`${existingPlayer.name} reconnected.`);
@@ -71,6 +73,7 @@ export class Room {
     const player: Player = {
       id: playerId,
       name,
+      avatar: avatar || '👨‍🚀',
       isReady: false,
       handSize: 0,
       team: (pos % 2 === 0 ? 0 : 1) as 0 | 1,
@@ -226,29 +229,41 @@ export class Room {
 
     if (roundWinner !== -1) {
       this.state.scores[roundWinner] += pts;
-      this.addLog(`Team ${roundWinner} wins round with ${this.state.tricksWon[roundWinner]} tricks (${pts} pts)`);
+      this.addLog(`Team ${roundWinner + 1} wins round with ${this.state.tricksWon[roundWinner]} tricks (${pts} pts)`);
     } else {
       this.addLog('Round draw (4-4)');
     }
 
-    // Check game finish
-    if (this.state.scores[0] >= 10 || this.state.scores[1] >= 10) {
-        this.state.phase = 'FINISHED';
-        this.state.winnerTeam = this.state.scores[0] >= 10 ? 0 : 1;
-    } else {
-        // Prepare next round
-        this.state.phase = 'LOBBY';
-        this.state.players.forEach(p => {
-          p.isReady = p.isBot ? true : false;
-        });
-        this.state.dealerIdx = (this.state.dealerIdx + 1) % 4;
-        this.state.tricksWon = [0, 0];
-        this.state.trumpSuit = null;
+    this.broadcastState(io);
 
-        if (this.state.players.every(p => p.isReady)) {
-          this.startGame(io);
+    // Wait 3 seconds before moving to next phase so players see the final trick and score update
+    setTimeout(() => {
+        // Check game finish
+        if (this.state.scores[0] >= 10 || this.state.scores[1] >= 10) {
+            this.state.phase = 'FINISHED';
+            this.state.winnerTeam = this.state.scores[0] >= 10 ? 0 : 1;
+            this.addLog(`GAME OVER! Team ${this.state.winnerTeam + 1} Wins!`);
+        } else {
+            // Prepare next round
+            // Reset for next hand but keep players in-place
+            this.state.dealerIdx = (this.state.dealerIdx + 1) % 4;
+            this.state.tricksWon = [0, 0];
+            this.state.trumpSuit = null;
+            this.state.currentTrick = [];
+            this.state.lastTrick = null;
+            this.state.lastTrickResult = null;
+            
+            this.addLog('Round complete. Dealing next hand...');
+
+            // If we have 4 players, just start the next game (it resets phase, deals cards, etc.)
+            if (this.state.players.length === 4) {
+              this.startGame(io);
+            } else {
+              this.state.phase = 'LOBBY';
+            }
         }
-    }
+        this.broadcastState(io);
+    }, 5000);
   }
 
   private addLog(msg: string) {
@@ -273,19 +288,33 @@ export class Room {
   }
 
   fillWithBots(io: Server, difficulty?: BotDifficulty, style?: string) {
+    const names = ['Jack', 'Annie', 'Billy', 'Kate', 'Stark', 'Rose'];
     while (this.state.players.length < 4) {
-        this.addBot(io, difficulty, style);
+        const usedNames = this.state.players.map(p => p.name);
+        // Prioritize names from our list that aren't taken
+        const nextName = names.find(n => !usedNames.includes(n)) || `Agent ${this.state.players.length + 1}`;
+        this.addBot(io, difficulty || 'TACTICAL', nextName);
     }
     this.broadcastState(io);
   }
 
   addBot(io: Server, difficulty: BotDifficulty = 'TACTICAL', style: string = 'AGENT') {
     if (this.state.players.length >= 4) return;
+    
+    // Check if name is already taken, if so, append ID
+    let finalName = style;
+    if (this.state.players.some(p => p.name === style)) {
+        finalName = `${style} ${this.state.players.length + 1}`;
+    }
+
     const botId = `bot-${uuidv4()}`;
     const pos = this.state.players.length;
+    
+    const botAvatars = ['🤖', '🦾', '👾', '🎮', '🛰️', '🕵️'];
     const bot: Player = {
       id: botId,
-      name: `${style} ${pos + 1}`,
+      name: finalName,
+      avatar: botAvatars[pos % botAvatars.length],
       isReady: true,
       handSize: 0,
       team: (pos % 2 === 0 ? 0 : 1) as 0 | 1,
@@ -297,6 +326,7 @@ export class Room {
     };
     this.state.players.push(bot);
     this.addLog(`${bot.name} (Bot, ${difficulty}) joined.`);
+    this.broadcastState(io); 
     
     // Auto-start if 4 players and all ready
     if (this.state.players.length === 4 && this.state.players.every(p => p.isReady)) {

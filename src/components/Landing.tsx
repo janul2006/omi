@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store.js';
-import { Trophy, Users, Play, Heart, Eye } from 'lucide-react';
+import { Trophy, Users, Play, Heart, Eye, Settings2 } from 'lucide-react';
 import { BotDifficulty } from '../types.js';
 import { cn } from '../lib/utils.js';
+import { Lobby } from './Lobby.js';
+import { motion, AnimatePresence } from 'motion/react';
 
 export const Landing: React.FC = () => {
-  const [name, setName] = useState('');
+  const [name, setName] = useState(localStorage.getItem('omi_callsign') || '');
+  const [avatar, setAvatar] = useState(localStorage.getItem('omi_avatar') || '👨‍🚀');
   const [room, setRoom] = useState('');
-  const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('TACTICAL');
-  const [aiOpponent, setAiOpponent] = useState('AGENT');
+  const [showLobby, setShowLobby] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const connect = useGameStore(state => state.connect);
+
+  const avatars = ['👨‍🚀', '🦸‍♂️', '🦹‍♂️', '🥷', '🕵️', '👩‍🚀', '👩‍🚒', '👮', '👽', '🤖', '👾', '🤡'];
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -17,118 +22,143 @@ export const Landing: React.FC = () => {
     if (roomParam) setRoom(roomParam);
   }, []);
 
+  const handleStartWithBots = (bots: { name: string, difficulty: BotDifficulty, style: string }[]) => {
+    if (name && room) {
+        // Save preferences
+        localStorage.setItem('omi_selected_bots', JSON.stringify(bots));
+        localStorage.setItem('omi_callsign', name);
+        localStorage.setItem('omi_avatar', avatar);
+        connect(room, name, avatar, false);
+    }
+  };
+
   const handleJoin = (isSpectator: boolean = false) => {
     if (name && room) {
-      // Save preferences to local storage for use in game
-      localStorage.setItem('omi_bot_difficulty', botDifficulty);
-      localStorage.setItem('omi_bot_style', aiOpponent);
-      connect(room, name, isSpectator);
+        localStorage.setItem('omi_callsign', name);
+        localStorage.setItem('omi_avatar', avatar);
+        connect(room, name, avatar, isSpectator);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-slate-200 flex flex-col items-center justify-center p-4 font-sans">
-      <div className="max-w-md w-full space-y-8 bg-[#121214] p-10 rounded-[2.5rem] shadow-2xl border border-slate-800/50">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-emerald-600 text-white shadow-lg shadow-emerald-900/40 mb-8 font-black text-3xl tracking-tighter transform -rotate-6">
+    <div className="min-h-screen text-slate-200 flex flex-col items-center p-4 font-sans overflow-y-auto custom-scrollbar bg-[#050505]">
+      <div className="max-w-md w-full py-12 space-y-8 bg-[#0c162e]/60 backdrop-blur-3xl p-10 rounded-[3rem] shadow-2xl border-4 border-blue-900/40 relative overflow-hidden shrink-0">
+        
+        {/* Glow Effects */}
+        <div className="absolute -top-24 -left-24 w-48 h-48 bg-blue-500/20 blur-[100px] rounded-full" />
+        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-indigo-500/20 blur-[100px] rounded-full" />
+
+        <div className="text-center relative">
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-[2rem] bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-2xl shadow-blue-900/40 mb-8 font-black text-5xl tracking-tighter transform -rotate-6 border-4 border-white/20">
             O
           </div>
-          <h1 className="text-5xl font-black tracking-tighter mb-2 bg-clip-text text-transparent bg-gradient-to-br from-slate-100 via-slate-400 to-slate-800 uppercase italic">OMI PRO</h1>
-          <p className="text-slate-500 font-bold text-sm tracking-widest uppercase opacity-60">Multiplayer Elite Edition</p>
+          <h1 className="text-6xl font-black tracking-tighter mb-2 text-white uppercase italic drop-shadow-lg">OMI PRO</h1>
+          <p className="text-blue-300/60 font-black text-xs tracking-[0.3em] uppercase">Multiplayer Elite</p>
         </div>
 
-        <div className="space-y-6 pt-4">
+        <div className="space-y-6 pt-4 relative">
+          <div className="flex justify-center mb-4">
+              <button 
+                onClick={() => setShowProfile(!showProfile)}
+                className="w-24 h-24 bg-white/5 border-4 border-blue-500/20 rounded-[2.5rem] flex items-center justify-center text-5xl hover:bg-white/10 transition-all active:scale-95 shadow-xl"
+              >
+                  {avatar}
+              </button>
+          </div>
+
+          {showProfile && (
+              <motion.div 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="grid grid-cols-4 gap-2 p-4 bg-black/40 rounded-[2rem] border border-white/5"
+              >
+                  {avatars.map(a => (
+                      <button
+                        key={a}
+                        onClick={() => {
+                            setAvatar(a);
+                            setShowProfile(false);
+                        }}
+                        className={cn(
+                            "w-12 h-12 flex items-center justify-center text-2xl rounded-xl transition-all hover:bg-white/10",
+                            avatar === a && "bg-blue-500/20 scale-110 border border-blue-500/40"
+                        )}
+                      >
+                          {a}
+                      </button>
+                  ))}
+              </motion.div>
+          )}
+
           <div className="space-y-2 group">
-            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 ml-1 group-focus-within:text-emerald-500 transition-colors">Tactical ID</label>
+            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400/50 ml-1 group-focus-within:text-blue-400 transition-colors">Tactical ID</label>
             <input
               type="text"
               required
               value={name}
               onChange={e => setName(e.target.value)}
-              className="w-full bg-[#0A0A0B] border-2 border-slate-800/50 rounded-2xl px-6 py-5 text-white focus:outline-none focus:border-emerald-600 focus:ring-8 focus:ring-emerald-600/5 transition-all placeholder:text-slate-700 font-bold"
+              className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-6 py-5 text-white focus:outline-none focus:border-blue-500/50 focus:bg-white/10 transition-all placeholder:text-white/10 font-bold"
               placeholder="ENTER CALLSIGN"
             />
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between px-1">
-                <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">AI Difficulty</label>
-                <div className="flex gap-2">
-                    {(['EASY', 'TACTICAL', 'ELITE'] as BotDifficulty[]).map(d => (
-                        <button
-                            key={d}
-                            onClick={() => setBotDifficulty(d)}
-                            className={cn(
-                                "px-2 py-1 rounded-md text-[8px] font-black border transition-all",
-                                botDifficulty === d ? "bg-emerald-600 border-emerald-500 text-white" : "bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-300"
-                            )}
-                        >
-                            {d}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="flex items-center justify-between px-1">
-                <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">AI Personality</label>
-                <div className="flex gap-2">
-                    {['AGENT', 'CYBORG', 'GHOST'].map(p => (
-                        <button
-                            key={p}
-                            onClick={() => setAiOpponent(p)}
-                            className={cn(
-                                "px-2 py-1 rounded-md text-[8px] font-black border transition-all",
-                                aiOpponent === p ? "bg-blue-600 border-blue-500 text-white" : "bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-300"
-                            )}
-                        >
-                            {p}
-                        </button>
-                    ))}
-                </div>
-            </div>
-          </div>
-
           <div className="space-y-2 group">
-            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 ml-1 group-focus-within:text-emerald-500 transition-colors">Combat Sector</label>
+            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400/50 ml-1 group-focus-within:text-blue-400 transition-colors">Combat Sector</label>
             <input
               type="text"
               required
               value={room}
               onChange={e => setRoom(e.target.value)}
-              className="w-full bg-[#0A0A0B] border-2 border-slate-800/50 rounded-2xl px-6 py-5 text-white focus:outline-none focus:border-emerald-600 focus:ring-8 focus:ring-emerald-600/5 transition-all placeholder:text-slate-700 font-bold uppercase"
+              className="w-full bg-white/5 border-2 border-white/5 rounded-2xl px-6 py-5 text-white focus:outline-none focus:border-blue-500/50 focus:bg-white/10 transition-all placeholder:text-white/10 font-bold uppercase"
               placeholder="ROOM CODE"
             />
           </div>
 
-          <div className="grid grid-cols-5 gap-3 pt-4">
+          <div className="grid grid-cols-2 gap-3 pt-4">
             <button
               onClick={() => handleJoin(false)}
-              className="col-span-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-5 rounded-2xl shadow-2xl shadow-emerald-900/20 transition-all flex items-center justify-center gap-3 active:scale-95 group"
+              className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white font-black py-5 rounded-[2rem] shadow-xl shadow-blue-900/20 transition-all flex items-center justify-center gap-3 active:scale-95 group border-b-4 border-blue-800"
             >
-              <span className="tracking-[0.2em] uppercase text-xs">Join Table</span>
-              <Play size={16} fill="currentColor" className="group-hover:translate-x-1 transition-transform" />
+              <span className="tracking-[0.2em] uppercase text-sm italic">Multiplayer</span>
+              <Users size={18} />
             </button>
             <button
-              onClick={() => handleJoin(true)}
-              className="col-span-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black py-5 rounded-2xl transition-all flex items-center justify-center gap-2 active:scale-95"
+              onClick={() => setShowLobby(true)}
+              className="bg-white/5 hover:bg-white/10 text-white font-black py-5 rounded-[1.5rem] transition-all flex items-center justify-center gap-3 active:scale-95 border border-white/5 group"
             >
-              <Eye size={16} />
-              <span className="tracking-[0.2em] uppercase text-[10px]">Spectate</span>
+              <span className="tracking-[0.2em] uppercase text-sm italic">Training</span>
+              <Trophy size={18} className="group-hover:rotate-12 transition-transform text-blue-400" />
             </button>
           </div>
+
+          <button
+            onClick={() => handleJoin(true)}
+            className="w-full bg-black/40 hover:bg-black/60 text-white/30 font-black py-4 rounded-[1.5rem] transition-all flex items-center justify-center gap-2 active:scale-95 border border-white/5"
+          >
+            <Eye size={16} />
+            <span className="tracking-[0.2em] uppercase text-[10px]">Spectate Mode</span>
+          </button>
         </div>
 
-        <div className="pt-8 border-t border-slate-800/50 flex justify-between items-center px-2">
-            <div className="flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
-                <Users size={14} className="text-slate-500" />
-                <span className="text-[9px] font-black tracking-widest text-slate-400 uppercase">Pro Matchmaking</span>
+        <div className="pt-8 border-t border-white/5 flex justify-center gap-6 relative">
+            <div className="flex items-center gap-2 opacity-40">
+                <Users size={14} className="text-blue-400" />
+                <span className="text-[9px] font-black tracking-widest text-blue-300 uppercase">Pro Elite</span>
             </div>
-            <div className="flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
-                <Heart size={14} className="text-slate-500" />
-                <span className="text-[9px] font-black tracking-widest text-slate-400 uppercase">Hifi Sync</span>
+            <div className="flex items-center gap-2 opacity-40">
+                <Heart size={14} className="text-rose-500" />
+                <span className="text-[9px] font-black tracking-widest text-blue-300 uppercase">Active</span>
             </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showLobby && (
+            <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-3xl overflow-y-auto pt-20 pb-10">
+                <Lobby onBack={() => setShowLobby(false)} onPlay={handleStartWithBots} />
+            </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

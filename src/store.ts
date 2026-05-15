@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { io, Socket } from 'socket.io-client';
-import { GameState, PrivatePlayerState, Suit } from './types.js';
+import { GameState, PrivatePlayerState, Suit, Card, BotDifficulty } from './types.js';
 
 interface GameStore {
   socket: Socket | null;
@@ -11,13 +11,13 @@ interface GameStore {
   isConnected: boolean;
   matchHistory: { date: string; score: [number, number]; winner: number }[];
   
-  connect: (roomId: string, name: string, isSpectator?: boolean) => void;
+  connect: (roomId: string, name: string, avatar?: string, isSpectator?: boolean) => void;
   sendMessage: (text: string) => void;
   ready: () => void;
   setTrump: (suit: Suit) => void;
   playCard: (cardId: string) => void;
-  addBot: () => void;
-  fillBots: () => void;
+  addBot: (difficulty?: BotDifficulty, style?: string) => void;
+  fillBots: (difficulty?: BotDifficulty, style?: string) => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -29,14 +29,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isConnected: false,
   matchHistory: JSON.parse(localStorage.getItem('omi_match_history') || '[]'),
 
-  connect: (roomId, name, isSpectator = false) => {
+  connect: (roomId, name, avatar, isSpectator = false) => {
     const socket = io();
     const storedPlayerId = localStorage.getItem(`omi_player_id_${roomId}`);
     
     socket.on("connect", () => {
       console.log("Connected to tactical server");
       set({ isConnected: true });
-      socket.emit('join_room', { roomId, name, playerId: storedPlayerId, isSpectator });
+      const selectedBots = JSON.parse(localStorage.getItem('omi_selected_bots') || '[]');
+      socket.emit('join_room', { roomId, name, avatar, playerId: storedPlayerId, isSpectator, selectedBots });
+      localStorage.removeItem('omi_selected_bots');
     });
 
     socket.on("disconnect", () => {
@@ -61,7 +63,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const history = get().matchHistory;
         const lastGame = history[0];
         // Prevent duplicate saves for same game
-        if (!lastGame || lastGame.date !== new Date().toDateString() || JSON.stringify(lastGame.score) !== JSON.stringify(game.scores)) {
+        if (!lastGame || lastGame.date !== new Date().toLocaleString() || JSON.stringify(lastGame.score) !== JSON.stringify(game.scores)) {
             const newHistory = [{
                 date: new Date().toLocaleString(),
                 score: game.scores,
@@ -94,21 +96,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  addBot: () => {
+  addBot: (difficulty, style) => {
     const { socket, game } = get();
     if (socket && game) {
-      const difficulty = localStorage.getItem('omi_bot_difficulty') || 'TACTICAL';
-      const style = localStorage.getItem('omi_bot_style') || 'AGENT';
-      socket.emit('add_bot', { roomId: game.roomId, difficulty, style });
+      socket.emit('add_bot', { 
+        roomId: game.roomId, 
+        difficulty: difficulty || 'TACTICAL', 
+        style: style || 'AGENT' 
+      });
     }
   },
 
-  fillBots: () => {
+  fillBots: (difficulty, style) => {
     const { socket, game } = get();
     if (socket && game) {
-      const difficulty = localStorage.getItem('omi_bot_difficulty') || 'TACTICAL';
-      const style = localStorage.getItem('omi_bot_style') || 'AGENT';
-      socket.emit('fill_bots', { roomId: game.roomId, difficulty, style });
+      socket.emit('fill_bots', { 
+        roomId: game.roomId, 
+        difficulty: difficulty || 'TACTICAL', 
+        style: style || 'AGENT' 
+      });
     }
   },
 
