@@ -30,6 +30,7 @@ export class Room {
       lastTrickOwnerIdx: null,
       discardedTricksCount: [0, 0],
       lastTrickResult: null,
+      targetScore: 10,
       history: [],
       chat: []
     };
@@ -243,9 +244,10 @@ export class Room {
     // Wait 3 seconds before moving to next phase so players see the final trick and score update
     setTimeout(() => {
         // Check game finish
-        if (this.state.scores[0] >= 10 || this.state.scores[1] >= 10) {
+        const target = this.state.targetScore;
+        if (this.state.scores[0] >= target || this.state.scores[1] >= target) {
             this.state.phase = 'FINISHED';
-            this.state.winnerTeam = this.state.scores[0] >= 10 ? 0 : 1;
+            this.state.winnerTeam = this.state.scores[0] >= target ? 0 : 1;
             this.addLog(`GAME OVER! Team ${this.state.winnerTeam + 1} Wins!`);
         } else {
             // Prepare next round
@@ -291,6 +293,14 @@ export class Room {
 
     this.state.chat.push(message);
     if (this.state.chat.length > 50) this.state.chat.shift();
+  }
+
+  updateSettings(targetScore: number, io: Server) {
+    // Only allow changing settings in LOBBY or if we want to support mid-game changes (risky)
+    // For now, let's allow it if it makes sense.
+    this.state.targetScore = targetScore;
+    this.addLog(`Settings updated: Target score is now ${targetScore}`);
+    this.broadcastState(io);
   }
 
   fillWithBots(io: Server, difficulty?: BotDifficulty, style?: string) {

@@ -45,6 +45,7 @@ export interface GameState {
     winnerName: string;
     winningCard: Card;
   } | null;
+  targetScore: number;
 }
 
 export interface ChatMessage {

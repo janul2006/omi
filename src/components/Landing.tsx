@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store.js';
-import { Trophy, Users, Play, Heart, Eye, Settings2 } from 'lucide-react';
+import { Trophy, Users, Play, Heart, Eye, Settings2, Volume2, VolumeX } from 'lucide-react';
 import { BotDifficulty } from '../types.js';
 import { cn } from '../lib/utils.js';
 import { Lobby } from './Lobby.js';
 import { motion, AnimatePresence } from 'motion/react';
+import { soundManager } from '../lib/sounds.js';
 
 export const Landing: React.FC = () => {
   const [name, setName] = useState(localStorage.getItem('omi_callsign') || '');
   const [avatar, setAvatar] = useState(localStorage.getItem('omi_avatar') || '👨‍🚀');
   const [room, setRoom] = useState('');
   const [showLobby, setShowLobby] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [isMuted, setIsMuted] = useState(soundManager.isSoundMuted());
   const connect = useGameStore(state => state.connect);
 
-  const avatars = ['👨‍🚀', '🦸‍♂️', '🦹‍♂️', '🥷', '🕵️', '👩‍🚀', '👩‍🚒', '👮', '👽', '🤖', '👾', '🤡'];
+  const avatars = ['👨‍🚀', '🦸‍♂️', '🦹‍♂️', '🥷', '🕵️', '👩‍🚀', '👩‍🚒', '👮', '👽', '🤖', '👾', '🤡', '🦊', '🦁', '🦉', '🐲'];
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -24,7 +27,6 @@ export const Landing: React.FC = () => {
 
   const handleStartWithBots = (bots: { name: string, difficulty: BotDifficulty, style: string }[]) => {
     if (name && room) {
-        // Save preferences
         localStorage.setItem('omi_selected_bots', JSON.stringify(bots));
         localStorage.setItem('omi_callsign', name);
         localStorage.setItem('omi_avatar', avatar);
@@ -59,36 +61,12 @@ export const Landing: React.FC = () => {
         <div className="space-y-6 pt-4 relative">
           <div className="flex justify-center mb-4">
               <button 
-                onClick={() => setShowProfile(!showProfile)}
+                onClick={() => setShowProfileEditor(true)}
                 className="w-24 h-24 bg-white/5 border-4 border-blue-500/20 rounded-[2.5rem] flex items-center justify-center text-5xl hover:bg-white/10 transition-all active:scale-95 shadow-xl"
               >
                   {avatar}
               </button>
           </div>
-
-          {showProfile && (
-              <motion.div 
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="grid grid-cols-4 gap-2 p-4 bg-black/40 rounded-[2rem] border border-white/5"
-              >
-                  {avatars.map(a => (
-                      <button
-                        key={a}
-                        onClick={() => {
-                            setAvatar(a);
-                            setShowProfile(false);
-                        }}
-                        className={cn(
-                            "w-12 h-12 flex items-center justify-center text-2xl rounded-xl transition-all hover:bg-white/10",
-                            avatar === a && "bg-blue-500/20 scale-110 border border-blue-500/40"
-                        )}
-                      >
-                          {a}
-                      </button>
-                  ))}
-              </motion.div>
-          )}
 
           <div className="space-y-2 group">
             <label className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-400/50 ml-1 group-focus-within:text-blue-400 transition-colors">Tactical ID</label>
@@ -150,9 +128,141 @@ export const Landing: React.FC = () => {
                 <span className="text-[9px] font-black tracking-widest text-blue-300 uppercase">Active</span>
             </div>
         </div>
+
+        <div className="absolute top-6 right-6 flex gap-3">
+            <button 
+                onClick={() => {
+                    const muted = soundManager.toggleMute();
+                    setIsMuted(muted);
+                }}
+                className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 text-white/40 hover:text-white transition-all shadow-lg"
+            >
+                {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            </button>
+            <button 
+                onClick={() => setShowSettings(true)}
+                className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 text-white/40 hover:text-white transition-all group shadow-lg"
+            >
+                <Settings2 size={20} className="group-hover:rotate-90 transition-transform" />
+            </button>
+        </div>
       </div>
 
       <AnimatePresence>
+        {/* Profile Editor Overlay */}
+        {showProfileEditor && (
+            <div className="fixed inset-0 z-[160] flex items-center justify-center p-6">
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setShowProfileEditor(false)}
+                    className="absolute inset-0 bg-black/95 backdrop-blur-3xl"
+                />
+                <motion.div 
+                    initial={{ scale: 0.9, y: 50 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.9, y: 50, opacity: 0 }}
+                    className="relative w-full max-w-lg bg-[#0c162e] rounded-[3.5rem] border-4 border-white/5 p-10 shadow-2xl"
+                >
+                    <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic mb-8 text-center">Operative Profile</h2>
+                    
+                    <div className="space-y-8">
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-black text-blue-300/40 uppercase tracking-[0.3em] px-2 italic">Select Identity</label>
+                            <div className="grid grid-cols-4 gap-3 bg-white/5 p-4 rounded-[2rem]">
+                                {avatars.map(a => (
+                                    <button 
+                                        key={a}
+                                        onClick={() => setAvatar(a)}
+                                        className={cn(
+                                            "aspect-square rounded-2xl flex items-center justify-center text-3xl transition-all border-2",
+                                            avatar === a ? "bg-blue-500 border-blue-400 shadow-lg scale-110" : "bg-white/5 border-transparent hover:bg-white/10"
+                                        )}
+                                    >
+                                        {a}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={() => {
+                            localStorage.setItem('omi_avatar', avatar);
+                            setShowProfileEditor(false);
+                        }}
+                        className="mt-10 w-full py-5 bg-cyan-500 hover:bg-cyan-400 text-white font-black rounded-3xl transition-all shadow-xl uppercase tracking-widest text-xs border-b-4 border-cyan-700"
+                    >
+                        Save Configuration
+                    </button>
+                </motion.div>
+            </div>
+        )}
+
+        {/* Global Config Overlay */}
+        {showSettings && (
+            <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setShowSettings(false)}
+                    className="absolute inset-0 bg-black/90 backdrop-blur-3xl"
+                />
+                <motion.div 
+                    initial={{ scale: 0.9, y: 50 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.9, y: 50, opacity: 0 }}
+                    className="relative w-full max-w-sm bg-[#0c162e] rounded-[3.5rem] border-4 border-blue-900/40 p-10 shadow-2xl"
+                >
+                     <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic mb-8 text-center flex items-center justify-center gap-4">
+                        <Settings2 className="w-6 h-6 text-blue-400" />
+                        Global Config
+                     </h3>
+
+                     <div className="space-y-6">
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-black text-blue-300/40 uppercase tracking-[0.3em] px-2 italic">Sound Settings</label>
+                            <button 
+                                onClick={() => {
+                                    const muted = soundManager.toggleMute();
+                                    setIsMuted(muted);
+                                }}
+                                className="w-full flex items-center justify-between p-5 bg-white/5 border-2 border-white/5 rounded-[1.5rem] hover:bg-white/10 transition-all group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className={cn(
+                                        "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                                        isMuted ? "bg-rose-500/20 text-rose-500" : "bg-blue-500/20 text-blue-400"
+                                    )}>
+                                        {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                                    </div>
+                                    <span className="text-xs font-black text-white uppercase italic">{isMuted ? 'Muted' : 'Sound On'}</span>
+                                </div>
+                                <div className={cn(
+                                    "w-10 h-6 rounded-full p-1 transition-all",
+                                    isMuted ? "bg-slate-800" : "bg-blue-500"
+                                )}>
+                                    <div className={cn(
+                                        "w-4 h-4 bg-white rounded-full transition-all transform",
+                                        isMuted ? "translate-x-0" : "translate-x-4"
+                                    )} />
+                                </div>
+                            </button>
+                        </div>
+                     </div>
+
+                     <button 
+                        onClick={() => setShowSettings(false)}
+                        className="mt-10 w-full py-5 bg-white/5 hover:bg-white/10 text-white font-black rounded-[1.5rem] transition-all uppercase tracking-widest text-[10px] border border-white/10"
+                     >
+                        Confirm
+                     </button>
+                </motion.div>
+            </div>
+        )}
+
         {showLobby && (
             <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-3xl overflow-y-auto pt-20 pb-10">
                 <Lobby onBack={() => setShowLobby(false)} onPlay={handleStartWithBots} />

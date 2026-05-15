@@ -91,6 +91,13 @@ async function startServer() {
       }
     });
 
+    socket.on("update_settings", ({ roomId, targetScore }) => {
+      const room = rooms.get(roomId);
+      if (room) {
+        room.updateSettings(targetScore, io);
+      }
+    });
+
     socket.on("disconnect", () => {
       console.log("Client disconnected", socket.id);
       rooms.forEach(room => {

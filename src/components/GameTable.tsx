@@ -3,7 +3,7 @@ import { useGameStore } from '../store.js';
 import { Card } from './Card.js';
 import { motion, AnimatePresence } from 'motion/react';
 import { Suit, Player, BotDifficulty } from '../types.js';
-import { Trophy, Shield, Clock, QrCode, Copy, Link, Eye, Share2, PanelLeft, MessageSquare, History, Send, WifiOff, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trophy, Shield, Clock, QrCode, Copy, Link, Eye, Share2, PanelLeft, MessageSquare, History, Send, WifiOff, Users, ChevronLeft, ChevronRight, Settings2, Volume2, VolumeX, LogOut } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 import { QRCodeCanvas } from 'qrcode.react';
 
@@ -34,15 +34,30 @@ const CHARACTERS: Character[] = [
 ];
 
 export const GameTable: React.FC = () => {
-  const { game, me, ready, setTrump, playCard, fillBots, addBot, isSpectator, isConnected, sendMessage, matchHistory } = useGameStore();
+  const { game, me, ready, setTrump, playCard, fillBots, addBot, isSpectator, isConnected, sendMessage, matchHistory, updateSettings } = useGameStore();
   const [showChat, setShowChat] = React.useState(false);
   const [showHistory, setShowHistory] = React.useState(false);
+  const [showSettings, setShowSettings] = React.useState(false);
   const [chatInp, setChatInp] = React.useState('');
   const [charIdx, setCharIdx] = React.useState(0);
   const [bgmStarted, setBgmStarted] = React.useState(false);
   const [sidebarVisible, setSidebarVisible] = React.useState(true);
   const [showLastTrickOverlay, setShowLastTrickOverlay] = React.useState(false);
+  const [lastRoundWinner, setLastRoundWinner] = React.useState<number | null>(null);
   const chatScrollRef = React.useRef<HTMLDivElement>(null);
+  const [isMuted, setIsMuted] = React.useState(soundManager.isSoundMuted());
+
+  // Detect round end
+  React.useEffect(() => {
+    if (!game) return;
+    if (game.tricksWon[0] + game.tricksWon[1] === 8) {
+        const winner = game.tricksWon[0] > game.tricksWon[1] ? 0 : 1;
+        setLastRoundWinner(winner);
+        soundManager.play('ROUND_WIN');
+        const timer = setTimeout(() => setLastRoundWinner(null), 4500);
+        return () => clearTimeout(timer);
+    }
+  }, [game?.tricksWon[0], game?.tricksWon[1]]);
 
   // Background Music
   React.useEffect(() => {
@@ -295,19 +310,54 @@ export const GameTable: React.FC = () => {
                 <motion.div 
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="bg-white/5 border-4 border-white/5 p-10 rounded-[3rem] shadow-2xl max-w-sm backdrop-blur-md"
+                    className="bg-white/5 border-4 border-white/5 p-12 rounded-[3.5rem] shadow-[0_0_100px_rgba(244,63,94,0.2)] max-w-md backdrop-blur-md relative overflow-hidden"
                 >
-                    <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mb-6 mx-auto border-2 border-rose-500/20">
-                        <WifiOff className="w-10 h-10 text-rose-500 animate-pulse" />
+                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-rose-500/10 rounded-full blur-3xl" />
+                    
+                    <div className="w-24 h-24 bg-rose-500/20 rounded-[2rem] flex items-center justify-center mb-8 mx-auto border-4 border-rose-500/30">
+                        <WifiOff className="w-12 h-12 text-rose-500 animate-pulse" />
                     </div>
-                    <h2 className="text-3xl font-black text-white mb-4 uppercase tracking-tighter italic">Reconnecting...</h2>
-                    <p className="text-blue-200/40 text-sm mb-10 font-bold leading-relaxed uppercase tracking-widest">Signal lost. Re-establishing secure link.</p>
-                    <button 
-                        onClick={() => window.location.reload()}
-                        className="w-full bg-white/5 hover:bg-white/10 text-white font-black py-5 rounded-[1.5rem] transition-all uppercase tracking-widest text-xs border border-white/10"
-                    >
-                        Force Reload
-                    </button>
+                    
+                    <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-tighter italic">Signal Lost</h2>
+                    <p className="text-rose-400 font-bold text-[10px] uppercase tracking-[0.4em] mb-6">Operative: {me.name}</p>
+                    
+                    <p className="text-blue-200/40 text-sm mb-10 font-bold leading-relaxed uppercase tracking-widest italic px-4">
+                        Encryption link unstable. Attempting to recover secure channel to tactical center.
+                    </p>
+
+                    <div className="grid grid-cols-1 gap-4">
+                        <button 
+                            onClick={() => window.location.reload()}
+                            className="w-full bg-cyan-500 hover:bg-cyan-400 text-white font-black py-5 rounded-[1.5rem] transition-all uppercase tracking-widest text-xs border-b-4 border-cyan-700 shadow-xl active:translate-y-1 active:border-b-0"
+                        >
+                            Reconnect Now
+                        </button>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button 
+                                onClick={() => window.location.href = '/'}
+                                className="bg-white/5 hover:bg-white/10 text-white/60 font-black py-4 rounded-[1.2rem] transition-all uppercase tracking-widest text-[9px] border border-white/10 flex items-center justify-center gap-2 group"
+                            >
+                                <LogOut size={14} className="group-hover:text-rose-500 transition-colors" />
+                                Leave Game
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    // Switch to spectator if we want, but usually it's better to just reload with spectator true
+                                    const url = new URL(window.location.href);
+                                    url.searchParams.set('spectate', 'true');
+                                    window.location.href = url.toString();
+                                }}
+                                className="bg-white/5 hover:bg-white/10 text-white/60 font-black py-4 rounded-[1.2rem] transition-all uppercase tracking-widest text-[9px] border border-white/10 flex items-center justify-center gap-2 group"
+                            >
+                                <Eye size={14} className="group-hover:text-cyan-400 transition-colors" />
+                                Watch Mode
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 text-[9px] font-black text-rose-500/40 uppercase tracking-[0.2em] animate-pulse italic">
+                        Reconnection attempts: active
+                    </div>
                 </motion.div>
             </div>
         )}
@@ -561,6 +611,121 @@ export const GameTable: React.FC = () => {
 
         {/* Global Overlays */}
         <AnimatePresence>
+            {lastRoundWinner !== null && game.phase !== 'FINISHED' && (
+                <motion.div 
+                    initial={{ opacity: 0, y: 100 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -100 }}
+                    className="absolute inset-0 z-[150] flex flex-col items-center justify-center pointer-events-none"
+                >
+                    <div className="bg-black/40 backdrop-blur-3xl p-16 rounded-[4rem] border-4 border-white/5 flex flex-col items-center gap-6 shadow-2xl">
+                        <motion.div 
+                            animate={{ rotate: [0, 360], scale: [1, 1.2, 1] }} 
+                            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                            className="w-24 h-24 bg-cyan-400/20 rounded-full flex items-center justify-center border-4 border-cyan-400/40"
+                        >
+                            <Trophy size={48} className="text-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.5)]" />
+                        </motion.div>
+                        <div className="text-center">
+                            <h3 className="text-sm font-black text-cyan-400 uppercase tracking-[0.4em] mb-2">Round Extraction Complete</h3>
+                            <h2 className="text-6xl font-black text-white italic tracking-tighter uppercase drop-shadow-2xl">
+                                {lastRoundWinner === me.team ? 'VICTORY' : 'DEFEAT'}
+                            </h2>
+                            <p className="mt-6 text-[10px] font-black text-blue-300/40 uppercase tracking-[0.3em]">
+                                Team {lastRoundWinner + 1} Secured {game.tricksWon[lastRoundWinner]} Tricks
+                            </p>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+
+            {game.phase === 'FINISHED' && (
+                <div className="absolute inset-0 z-[200] flex items-center justify-center p-6 overflow-hidden">
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="absolute inset-0 bg-black/90 backdrop-blur-3xl"
+                    />
+                    
+                    {/* Confetti-like bits */}
+                    <div className="absolute inset-0 pointer-events-none">
+                        {Array.from({ length: 40 }).map((_, i) => (
+                            <motion.div
+                                key={i}
+                                initial={{ 
+                                    y: -20, 
+                                    x: Math.random() * 100 + "%", 
+                                    opacity: 1, 
+                                    rotate: 0,
+                                    scale: Math.random() * 0.5 + 0.5
+                                }}
+                                animate={{ 
+                                    y: "120vh", 
+                                    rotate: 360 * (Math.random() > 0.5 ? 1 : -1),
+                                }}
+                                transition={{ 
+                                    duration: Math.random() * 3 + 2, 
+                                    repeat: Infinity,
+                                    ease: "linear",
+                                    delay: Math.random() * 5
+                                }}
+                                className={cn(
+                                    "absolute w-4 h-4 rounded-sm",
+                                    i % 2 === 0 ? "bg-cyan-500 shadow-[0_0_10px_rgba(34,211,238,0.5)]" : "bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+                                )}
+                            />
+                        ))}
+                    </div>
+
+                    <motion.div 
+                        initial={{ scale: 0.5, opacity: 0, rotateX: 45 }}
+                        animate={{ scale: 1, opacity: 1, rotateX: 0 }}
+                        className="relative w-full max-w-2xl bg-gradient-to-br from-[#0c162e] to-[#040815] rounded-[4rem] border-8 border-cyan-400/20 p-16 shadow-[0_0_150px_rgba(34,211,238,0.2)] text-center"
+                    >
+                         <motion.div 
+                            animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
+                            transition={{ duration: 4, repeat: Infinity }}
+                            className="w-32 h-32 bg-cyan-400/20 rounded-[3rem] flex items-center justify-center mx-auto mb-10 border-4 border-cyan-400/40 relative"
+                         >
+                             <Trophy size={64} className="text-cyan-400 drop-shadow-[0_0_20px_rgba(34,211,238,0.8)]" />
+                             <div className="absolute -inset-4 bg-cyan-400/10 rounded-full blur-2xl animate-pulse" />
+                         </motion.div>
+
+                         <h2 className="text-[12px] font-black text-cyan-400 uppercase tracking-[0.5em] mb-4 italic">Campaign Concluded</h2>
+                         <h1 className="text-7xl font-black text-white italic tracking-tighter mb-8 uppercase drop-shadow-2xl">
+                            {game.winnerTeam === me.team ? 'VICTORY' : 'DEFEAT'}
+                         </h1>
+                         
+                         <div className="bg-white/5 rounded-[2.5rem] p-8 border-2 border-white/5 mb-12 flex justify-center items-center gap-12">
+                            <div className="text-center">
+                                <p className="text-[10px] font-black text-cyan-400 uppercase mb-2">We</p>
+                                <p className="text-6xl font-black text-white">{game.scores[me.team]}</p>
+                            </div>
+                            <div className="h-16 w-0.5 bg-white/10" />
+                            <div className="text-center">
+                                <p className="text-[10px] font-black text-white/20 uppercase mb-2">They</p>
+                                <p className="text-6xl font-black text-white/20">{game.scores[1 - me.team]}</p>
+                            </div>
+                         </div>
+
+                         <div className="flex gap-4">
+                            <button 
+                                onClick={() => window.location.reload()}
+                                className="flex-1 py-6 bg-cyan-500 hover:bg-cyan-400 text-white font-black rounded-3xl transition-all shadow-[0_10px_30px_rgba(34,211,238,0.3)] uppercase tracking-widest text-xs border-b-6 border-cyan-700 active:translate-y-1 active:border-b-0"
+                            >
+                                Re-Deploy Operative
+                            </button>
+                            <button 
+                                onClick={() => window.location.href = '/'}
+                                className="px-8 py-6 bg-white/5 hover:bg-white/10 text-white/40 font-black rounded-3xl transition-all uppercase tracking-widest text-xs border border-white/10"
+                            >
+                                Retreat
+                            </button>
+                         </div>
+                    </motion.div>
+                </div>
+            )}
+
             {showLastTrickOverlay && game.lastTrick && (
                 <div className="absolute inset-0 z-[120] flex items-center justify-center p-6">
                     <motion.div 
@@ -800,6 +965,14 @@ export const GameTable: React.FC = () => {
             <motion.button 
                 whileHover={{ scale: 1.1, rotate: -10 }}
                 whileTap={{ scale: 0.9 }}
+                onClick={() => setShowSettings(true)}
+                className="bg-[#0c162e]/60 backdrop-blur-2xl p-5 rounded-3xl text-blue-300/60 border-2 border-white/5 hover:bg-white/10 hover:text-white transition-all shadow-2xl group"
+            >
+                <Settings2 className="w-6 h-6 group-hover:rotate-90 transition-transform" />
+            </motion.button>
+            <motion.button 
+                whileHover={{ scale: 1.1, rotate: -10 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setShowHistory(true)}
                 className="bg-[#0c162e]/60 backdrop-blur-2xl p-5 rounded-3xl text-blue-300/60 border-2 border-white/5 hover:bg-white/10 hover:text-white transition-all shadow-2xl group"
             >
@@ -876,6 +1049,112 @@ export const GameTable: React.FC = () => {
                         </button>
                     </form>
                 </motion.div>
+            )}
+        </AnimatePresence>
+
+        {/* Global Settings Overlay */}
+        <AnimatePresence>
+            {showSettings && (
+                <div className="absolute inset-0 z-[140] flex items-center justify-center p-6">
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowSettings(false)}
+                        className="absolute inset-0 bg-black/90 backdrop-blur-3xl"
+                    />
+                    <motion.div 
+                        initial={{ scale: 0.9, y: 50 }}
+                        animate={{ scale: 1, y: 0 }}
+                        className="relative w-full max-w-xl bg-[#0c162e] rounded-[4rem] border-4 border-white/5 p-12 shadow-[0_0_150px_rgba(0,0,0,0.8)]"
+                    >
+                         <h3 className="text-3xl font-black text-white uppercase tracking-tighter italic mb-10 text-center flex items-center justify-center gap-4">
+                            <Settings2 className="w-8 h-8 text-cyan-400" />
+                            Tactical Settings
+                         </h3>
+
+                         <div className="space-y-10">
+                            {/* Target Score setting */}
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-blue-300 uppercase tracking-[0.3em] italic px-4">Match Target Score</label>
+                                <div className="grid grid-cols-3 gap-4">
+                                    {[5, 10, 15].map(score => (
+                                        <button 
+                                            key={score}
+                                            onClick={() => updateSettings(score)}
+                                            className={cn(
+                                                "py-5 rounded-3xl font-black text-sm transition-all border-2",
+                                                game.targetScore === score 
+                                                    ? "bg-cyan-500 border-cyan-400 text-white shadow-xl shadow-cyan-900/40" 
+                                                    : "bg-white/5 border-white/5 text-white/40 hover:bg-white/10 hover:border-white/10"
+                                            )}
+                                        >
+                                            {score} PTS
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* BGM Volume Setting */}
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-blue-300 uppercase tracking-[0.3em] italic px-4">Ambient Protocol Volume</label>
+                                <div className="flex items-center gap-6 p-6 bg-white/5 border-2 border-white/5 rounded-3xl">
+                                    <Volume2 size={20} className="text-cyan-400" />
+                                    <input 
+                                        type="range"
+                                        min="0"
+                                        max="0.2"
+                                        step="0.01"
+                                        defaultValue="0.05"
+                                        onChange={(e) => soundManager.setBGMVolume(parseFloat(e.target.value))}
+                                        className="flex-1 accent-cyan-400 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Sound Toggle Setting */}
+                            <div className="space-y-4">
+                                <label className="text-[10px] font-black text-blue-300 uppercase tracking-[0.3em] italic px-4">Audio Configuration</label>
+                                <button 
+                                    onClick={() => {
+                                        const muted = soundManager.toggleMute();
+                                        setIsMuted(muted);
+                                    }}
+                                    className="w-full flex items-center justify-between p-6 bg-white/5 border-2 border-white/5 rounded-3xl hover:bg-white/10 transition-all group"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className={cn(
+                                            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                                            isMuted ? "bg-rose-500/20 text-rose-500" : "bg-cyan-500/20 text-cyan-400"
+                                        )}>
+                                            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-sm font-black text-white uppercase italic">Match Audio</p>
+                                            <p className="text-[10px] text-blue-300/30 uppercase font-black uppercase tracking-widest">{isMuted ? 'Muted' : 'Operational'}</p>
+                                        </div>
+                                    </div>
+                                    <div className={cn(
+                                        "w-14 h-8 rounded-full p-1 transition-all",
+                                        isMuted ? "bg-slate-800" : "bg-cyan-500"
+                                    )}>
+                                        <div className={cn(
+                                            "w-6 h-6 bg-white rounded-full transition-all transform",
+                                            isMuted ? "translate-x-0" : "translate-x-6"
+                                        )} />
+                                    </div>
+                                </button>
+                            </div>
+                         </div>
+
+                         <button 
+                            onClick={() => setShowSettings(false)}
+                            className="mt-16 w-full py-6 bg-white/5 hover:bg-white/10 text-white font-black rounded-[2rem] transition-all uppercase tracking-widest text-xs border border-white/10"
+                         >
+                            Apply Protocol
+                         </button>
+                    </motion.div>
+                </div>
             )}
         </AnimatePresence>
 

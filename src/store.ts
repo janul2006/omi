@@ -18,6 +18,7 @@ interface GameStore {
   playCard: (cardId: string) => void;
   addBot: (difficulty?: BotDifficulty, style?: string) => void;
   fillBots: (difficulty?: BotDifficulty, style?: string) => void;
+  updateSettings: (targetScore: number) => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -129,6 +130,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { socket, game, me } = get();
     if (socket && game && me) {
       socket.emit('play_card', { roomId: game.roomId, playerId: me.id, cardId });
+    }
+  },
+  updateSettings: (targetScore) => {
+    const { socket, game } = get();
+    if (socket && game) {
+      socket.emit('update_settings', { roomId: game.roomId, targetScore });
     }
   },
 }));
