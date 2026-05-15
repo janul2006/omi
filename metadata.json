@@ -1,0 +1,6 @@
+{
+  "name": "Omi Multiplayer",
+  "description": "A high-performance Sri Lankan Omi card game with real-time multiplayer, reconnection support, and smooth animations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
