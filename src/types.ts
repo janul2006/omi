@@ -37,6 +37,8 @@ export interface GameState {
   scores: [number, number]; // [Team 0, Team 1]
   winnerTeam: number | null;
   lastTrick: { playerId: string; card: Card }[] | null;
+  lastTrickOwnerIdx: number | null;
+  discardedTricksCount: [number, number]; // [Team 0, Team 1]
   history: string[]; // For game logs
   chat: ChatMessage[];
   lastTrickResult: {

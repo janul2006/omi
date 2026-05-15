@@ -27,6 +27,8 @@ export class Room {
       scores: [0, 0],
       winnerTeam: null,
       lastTrick: null,
+      lastTrickOwnerIdx: null,
+      discardedTricksCount: [0, 0],
       lastTrickResult: null,
       history: [],
       chat: []
@@ -187,7 +189,9 @@ export class Room {
     const winnerPlayer = this.state.players.find(p => p.id === winnerId)!;
     
     this.state.tricksWon[winnerPlayer.team]++;
+    this.state.discardedTricksCount[winnerPlayer.team]++;
     this.state.lastTrick = [...this.state.currentTrick];
+    this.state.lastTrickOwnerIdx = winnerPlayer.pos;
     this.state.lastTrickResult = {
       winnerName: winnerPlayer.name,
       winningCard: this.state.currentTrick[winnerIdxInTrick].card
@@ -248,6 +252,8 @@ export class Room {
             // Reset for next hand but keep players in-place
             this.state.dealerIdx = (this.state.dealerIdx + 1) % 4;
             this.state.tricksWon = [0, 0];
+            this.state.discardedTricksCount = [0, 0];
+            this.state.lastTrickOwnerIdx = null;
             this.state.trumpSuit = null;
             this.state.currentTrick = [];
             this.state.lastTrick = null;

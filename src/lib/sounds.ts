@@ -1,10 +1,10 @@
 
 export const SOUNDS = {
-  CARD_PLAY: 'https://assets.mixkit.co/active_storage/sfx/261/261-preview.mp3', // Soft card flip
-  TRICK_WIN: 'https://assets.mixkit.co/active_storage/sfx/829/829-preview.mp3', // Shout 'Yes!'
-  DEAL: 'https://assets.mixkit.co/active_storage/sfx/2011/2011-preview.mp3', // Quick shuffle
-  GAME_START: 'https://assets.mixkit.co/active_storage/sfx/1997/1997-preview.mp3', // Fanfare
-  BGM: 'https://assets.mixkit.co/music/preview/mixkit-soft-ambient-624.mp3', // Pulse ambient
+  CARD_PLAY: 'https://www.soundjay.com/misc/sounds/card-flip-1.mp3', // Reliable flip
+  TRICK_WIN: 'https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3', // Distinctive 'Yes!' / Cheering
+  DEAL: 'https://www.soundjay.com/misc/sounds/shuffling-cards-1.mp3', // Detailed shuffle
+  GAME_START: 'https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3', // Gentle chime
+  BGM: 'https://assets.mixkit.co/music/preview/mixkit-soft-ambient-624.mp3', // Ambient
 };
 
 class SoundManager {

@@ -30,15 +30,33 @@ export const Card: React.FC<CardProps> = ({ card, faceDown, onClick, className, 
     return (
       <motion.div
         layout
-        whileHover={!disabled ? { y: -10 } : {}}
+        whileHover={!disabled ? { scale: 1.05, rotate: -2, y: -5 } : {}}
         className={cn(
-          "w-20 h-28 sm:w-26 sm:h-38 bg-gradient-to-br from-blue-500 to-indigo-700 rounded-2xl shadow-xl flex items-center justify-center relative overflow-hidden border-[3px] border-white/20",
+          "w-20 h-28 sm:w-26 sm:h-38 bg-[#0c162e] rounded-2xl shadow-2xl flex items-center justify-center relative overflow-hidden border-[3px] border-blue-500/30",
           className
         )}
       >
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:8px_8px]" />
-        <div className="text-white/20 font-black text-2xl tracking-tighter italic">OMI</div>
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-white/10 to-transparent skew-y-[-12deg] origin-top-left pointer-events-none" />
+        {/* Core Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/40 via-indigo-900/60 to-slate-900" />
+        
+        {/* Pattern Layer */}
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-400 via-transparent to-transparent bg-[length:12px_12px]" />
+        
+        {/* Thematic Logo/Text */}
+        <div className="relative z-10 flex flex-col items-center">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400/20 to-blue-500/20 border border-white/10 flex items-center justify-center mb-1">
+                <div className="text-white/40 font-black text-xl italic tracking-tighter">O</div>
+            </div>
+            <div className="text-white/10 font-black text-[8px] uppercase tracking-[0.4em] italic">Tactical</div>
+        </div>
+
+        {/* Decorative elements */}
+        <div className="absolute top-2 left-2 w-4 h-4 border-l border-t border-white/10" />
+        <div className="absolute top-2 right-2 w-4 h-4 border-r border-t border-white/10" />
+        <div className="absolute bottom-2 left-2 w-4 h-4 border-l border-b border-white/10" />
+        <div className="absolute bottom-2 right-2 w-4 h-4 border-r border-b border-white/10" />
+
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-white/5 to-transparent skew-y-[-12deg] origin-top-left pointer-events-none" />
       </motion.div>
     );
   }
@@ -48,7 +66,7 @@ export const Card: React.FC<CardProps> = ({ card, faceDown, onClick, className, 
   return (
     <motion.div
       layout
-      whileHover={!disabled ? { y: -30, scale: 1.1, rotate: 2 } : {}}
+      whileHover={!disabled ? { y: -25, scale: 1.1, rotate: -2 } : {}}
       onClick={!disabled ? onClick : undefined}
       className={cn(
         "w-20 h-28 sm:w-26 sm:h-38 bg-white border-[3px] rounded-2xl shadow-xl flex flex-col p-3 cursor-pointer select-none relative group transition-colors",

@@ -40,6 +40,8 @@ export const GameTable: React.FC = () => {
   const [chatInp, setChatInp] = React.useState('');
   const [charIdx, setCharIdx] = React.useState(0);
   const [bgmStarted, setBgmStarted] = React.useState(false);
+  const [sidebarVisible, setSidebarVisible] = React.useState(true);
+  const [showLastTrickOverlay, setShowLastTrickOverlay] = React.useState(false);
   const chatScrollRef = React.useRef<HTMLDivElement>(null);
 
   // Background Music
@@ -124,11 +126,44 @@ export const GameTable: React.FC = () => {
   const isMyTrumpCall = game.trumpCallerIdx === me.pos && game.phase === 'TRUMP_CALLING';
 
   return (
-    <div className="min-h-screen w-full bg-[#0A0A0B] text-slate-200 flex flex-col md:flex-row overflow-y-auto custom-scrollbar font-sans">
+    <div className="min-h-screen w-full bg-[#0A0A0B] text-slate-200 flex flex-col md:flex-row overflow-y-auto custom-scrollbar font-sans relative">
+      {/* Sidebar Toggle Button (when hidden) */}
+      {!sidebarVisible && (
+          <motion.button 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            onClick={() => setSidebarVisible(true)}
+            className="fixed top-24 left-4 z-[90] p-4 bg-[#0c162e]/80 backdrop-blur-3xl border-2 border-blue-500/30 rounded-2xl text-cyan-400 shadow-2xl hover:bg-blue-500/10 transition-all active:scale-95 group"
+          >
+              <div className="relative">
+                <PanelLeft size={24} />
+                <div className="absolute -right-1 -bottom-1">
+                    <ChevronRight size={12} />
+                </div>
+              </div>
+          </motion.button>
+      )}
+
       {/* Left Sidebar: Stats & Activity */}
-      <aside className="w-80 bg-[#0c162e]/80 backdrop-blur-3xl border-r-4 border-blue-900/30 flex flex-col z-30 shrink-0 shadow-2xl relative">
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
-          <div className="flex items-center gap-3 shrink-0">
+      <AnimatePresence mode="wait">
+        {sidebarVisible && (
+          <motion.aside 
+            initial={{ x: -320 }}
+            animate={{ x: 0 }}
+            exit={{ x: -320 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="w-80 bg-[#0c162e]/80 backdrop-blur-3xl border-r-4 border-blue-900/30 flex flex-col z-30 shrink-0 shadow-2xl relative"
+          >
+            {/* Sidebar Toggle Button (when visible) */}
+            <button 
+                onClick={() => setSidebarVisible(false)}
+                className="absolute top-1/2 -right-6 -translate-y-1/2 w-6 h-20 bg-blue-900/40 hover:bg-blue-900/60 transition-colors flex items-center justify-center rounded-r-xl border-r-2 border-y-2 border-blue-800/50 group"
+            >
+                <ChevronLeft size={16} className="text-blue-300/40 group-hover:text-cyan-400 group-hover:-translate-x-0.5 transition-all" />
+            </button>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
+              <div className="flex items-center gap-3 shrink-0">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center font-black text-white shadow-xl shadow-blue-900/40 text-2xl tracking-tighter border-2 border-white/20">O</div>
             <h1 className="text-2xl font-black tracking-tight text-white italic drop-shadow-md">OMI PRO</h1>
           </div>
@@ -247,7 +282,9 @@ export const GameTable: React.FC = () => {
         <div className="p-6 border-t border-slate-800 bg-[#121214] shrink-0">
            <button onClick={() => window.location.reload()} className="w-full py-4 bg-slate-800 hover:bg-rose-900/20 hover:text-rose-500 hover:border-rose-500/30 border border-transparent rounded-xl text-[10px] font-black tracking-widest transition-all active:scale-95 uppercase">LEAVE TABLE</button>
         </div>
-      </aside>
+      </motion.aside>
+    )}
+  </AnimatePresence>
 
       {/* Main Game Stage */}
       <main className="flex-1 relative flex flex-col overflow-hidden">
@@ -307,6 +344,34 @@ export const GameTable: React.FC = () => {
 
              {/* Center Play Area */}
              <div className="relative w-[30%] aspect-square rounded-full flex items-center justify-center">
+                
+                {/* Discard Piles */}
+                <div className="absolute left-[-220px] top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-auto">
+                    <div className="relative w-12 h-16">
+                        {game.discardedTricksCount[0] > 0 && Array.from({ length: Math.min(game.discardedTricksCount[0], 8) }).map((_, i) => (
+                            <div 
+                                key={i} 
+                                className="absolute inset-0 bg-[#0c162e] border border-blue-500/20 rounded-lg shadow-xl"
+                                style={{ transform: `translate(${i * 1.5}px, ${-i * 1.5}px) rotate(${i * 3}deg)` }}
+                            />
+                        ))}
+                    </div>
+                    <div className="text-[8px] font-black uppercase text-blue-300/30 tracking-[0.2em] whitespace-nowrap">We: {game.discardedTricksCount[0]}</div>
+                </div>
+
+                <div className="absolute right-[-220px] top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-auto">
+                    <div className="relative w-12 h-16">
+                        {game.discardedTricksCount[1] > 0 && Array.from({ length: Math.min(game.discardedTricksCount[1], 8) }).map((_, i) => (
+                            <div 
+                                key={i} 
+                                className="absolute inset-0 bg-[#0c162e] border border-blue-500/20 rounded-lg shadow-xl"
+                                style={{ transform: `translate(${-i * 1.5}px, ${-i * 1.5}px) rotate(${-i * 3}deg)` }}
+                            />
+                        ))}
+                    </div>
+                    <div className="text-[8px] font-black uppercase text-blue-300/30 tracking-[0.2em] whitespace-nowrap">They: {game.discardedTricksCount[1]}</div>
+                </div>
+
                 <AnimatePresence>
                     {game.currentTrick.map((play) => {
                         const relIdx = getRelativePos(game.players.find(p => p.id === play.playerId)!.pos);
@@ -388,6 +453,12 @@ export const GameTable: React.FC = () => {
                             {isCurrent && (
                                 <div className="absolute -top-1 -right-1 w-6 h-6 bg-cyan-400 rounded-full border-4 border-[#0c162e] animate-bounce" />
                             )}
+                            
+                            {/* Prominent Card Count */}
+                            <div className="absolute -bottom-2 -left-2 bg-gradient-to-br from-indigo-600 to-blue-700 text-white text-[10px] font-black px-2 py-1 rounded-lg border border-white/20 shadow-xl flex items-center gap-1">
+                                <span className="opacity-50">🎴</span>
+                                {p.handSize}
+                            </div>
                         </div>
                         <div className={cn(
                             "px-5 py-2 rounded-2xl border-2 backdrop-blur-3xl flex flex-col items-center min-w-[100px] shadow-xl",
@@ -400,7 +471,7 @@ export const GameTable: React.FC = () => {
                                         key={idx} 
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
-                                        className="w-1.5 h-1.5 bg-cyan-400/40 rounded-full" 
+                                        className="w-1 h-1 bg-cyan-400/20 rounded-full" 
                                     />
                                 ))}
                             </div>
@@ -490,6 +561,42 @@ export const GameTable: React.FC = () => {
 
         {/* Global Overlays */}
         <AnimatePresence>
+            {showLastTrickOverlay && game.lastTrick && (
+                <div className="absolute inset-0 z-[120] flex items-center justify-center p-6">
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowLastTrickOverlay(false)}
+                        className="absolute inset-0 bg-black/90 backdrop-blur-3xl"
+                    />
+                    <motion.div 
+                        initial={{ scale: 0.9, y: 50 }}
+                        animate={{ scale: 1, y: 0 }}
+                        className="relative w-full max-w-2xl bg-[#0c162e] rounded-[4rem] border-4 border-white/5 p-12 shadow-[0_0_150px_rgba(0,0,0,0.8)]"
+                    >
+                         <h3 className="text-2xl font-black text-white uppercase tracking-tighter italic mb-10 text-center">Last Played Hand</h3>
+                         <div className="flex justify-center gap-12">
+                            {game.lastTrick.map((play, idx) => {
+                                const player = game.players.find(p => p.id === play.playerId);
+                                return (
+                                    <div key={idx} className="flex flex-col items-center gap-4">
+                                        <div className="text-[10px] font-black text-blue-300 uppercase tracking-widest">{player?.name}</div>
+                                        <Card card={play.card} disabled className="scale-[1.2]" />
+                                    </div>
+                                );
+                            })}
+                         </div>
+                         <button 
+                            onClick={() => setShowLastTrickOverlay(false)}
+                            className="mt-16 w-full py-5 bg-white/5 hover:bg-white/10 text-white font-black rounded-3xl transition-all uppercase tracking-widest text-xs border border-white/10"
+                         >
+                            Return to Table
+                         </button>
+                    </motion.div>
+                </div>
+            )}
+
             {game.lastTrickResult && (
                 <motion.div
                     key="trick-result"
@@ -680,6 +787,16 @@ export const GameTable: React.FC = () => {
 
         {/* Floating Utility Buttons */}
         <div className="absolute bottom-10 right-10 z-[60] flex flex-col gap-5">
+            {game.lastTrick && (
+                <motion.button 
+                    whileHover={{ scale: 1.1, rotate: -10 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowLastTrickOverlay(true)}
+                    className="bg-cyan-500/20 backdrop-blur-2xl p-5 rounded-3xl text-cyan-400 border-2 border-cyan-400/30 hover:bg-cyan-500/30 transition-all shadow-[0_0_40px_rgba(34,211,238,0.2)] group"
+                >
+                    <Eye className="w-6 h-6" />
+                </motion.button>
+            )}
             <motion.button 
                 whileHover={{ scale: 1.1, rotate: -10 }}
                 whileTap={{ scale: 0.9 }}
