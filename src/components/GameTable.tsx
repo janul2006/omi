@@ -45,7 +45,8 @@ export const GameTable: React.FC = () => {
   const [showLastTrickOverlay, setShowLastTrickOverlay] = React.useState(false);
   const [lastRoundWinner, setLastRoundWinner] = React.useState<number | null>(null);
   const chatScrollRef = React.useRef<HTMLDivElement>(null);
-  const [isMuted, setIsMuted] = React.useState(soundManager.isSoundMuted());
+  const [isBGMMuted, setIsBGMMuted] = React.useState(soundManager.getBGMState());
+  const [isSFXMuted, setIsSFXMuted] = React.useState(soundManager.getSFXState());
 
   // Detect round end
   React.useEffect(() => {
@@ -141,41 +142,48 @@ export const GameTable: React.FC = () => {
   const isMyTrumpCall = game.trumpCallerIdx === me.pos && game.phase === 'TRUMP_CALLING';
 
   return (
-    <div className="min-h-screen w-full bg-[#0A0A0B] text-slate-200 flex flex-col md:flex-row overflow-y-auto custom-scrollbar font-sans relative">
-      {/* Sidebar Toggle Button (when hidden) */}
-      {!sidebarVisible && (
+    <div className="h-screen w-full bg-[#0A0A0B] text-slate-200 flex flex-col lg:flex-row overflow-hidden font-sans relative">
+      {/* Sidebar Toggle Button (Mobile/Tablet) */}
+      <div className="lg:hidden fixed top-6 left-6 z-[90] flex gap-3">
           <motion.button 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            onClick={() => setSidebarVisible(true)}
-            className="fixed top-24 left-4 z-[90] p-4 bg-[#0c162e]/80 backdrop-blur-3xl border-2 border-blue-500/30 rounded-2xl text-cyan-400 shadow-2xl hover:bg-blue-500/10 transition-all active:scale-95 group"
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setSidebarVisible(!sidebarVisible)}
+            className="p-4 bg-[#0c162e]/80 backdrop-blur-3xl border-2 border-blue-500/30 rounded-2xl text-cyan-400 shadow-2xl"
           >
-              <div className="relative">
-                <PanelLeft size={24} />
-                <div className="absolute -right-1 -bottom-1">
-                    <ChevronRight size={12} />
-                </div>
-              </div>
+              <PanelLeft size={20} />
           </motion.button>
-      )}
+          <div className="flex flex-col justify-center">
+            <h1 className="text-xs font-black tracking-widest text-white italic">OMI PRO</h1>
+            <p className="text-[8px] font-black text-cyan-400/50 uppercase tracking-widest">Sector {game.roomId.toUpperCase()}</p>
+          </div>
+      </div>
 
-      {/* Left Sidebar: Stats & Activity */}
+      {/* Sidebar: Stats & Activity */}
       <AnimatePresence mode="wait">
         {sidebarVisible && (
-          <motion.aside 
-            initial={{ x: -320 }}
-            animate={{ x: 0 }}
-            exit={{ x: -320 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="w-80 bg-[#0c162e]/80 backdrop-blur-3xl border-r-4 border-blue-900/30 flex flex-col z-30 shrink-0 shadow-2xl relative"
-          >
-            {/* Sidebar Toggle Button (when visible) */}
-            <button 
+          <>
+            {/* Backdrop for mobile */}
+            <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 onClick={() => setSidebarVisible(false)}
-                className="absolute top-1/2 -right-6 -translate-y-1/2 w-6 h-20 bg-blue-900/40 hover:bg-blue-900/60 transition-colors flex items-center justify-center rounded-r-xl border-r-2 border-y-2 border-blue-800/50 group"
+                className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[85]"
+            />
+            <motion.aside 
+                initial={{ x: -320 }}
+                animate={{ x: 0 }}
+                exit={{ x: -320 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="fixed lg:relative inset-y-0 left-0 w-80 bg-[#0c162e]/95 lg:bg-[#0c162e]/80 backdrop-blur-3xl border-r-4 border-blue-900/30 flex flex-col z-[90] lg:z-30 shrink-0 shadow-2xl"
             >
-                <ChevronLeft size={16} className="text-blue-300/40 group-hover:text-cyan-400 group-hover:-translate-x-0.5 transition-all" />
-            </button>
+                {/* Sidebar Toggle Button (Desktop when visible) */}
+                <button 
+                    onClick={() => setSidebarVisible(false)}
+                    className="hidden lg:flex absolute top-1/2 -right-6 -translate-y-1/2 w-6 h-20 bg-blue-900/40 hover:bg-blue-900/60 transition-colors items-center justify-center rounded-r-xl border-r-2 border-y-2 border-blue-800/50 group"
+                >
+                    <ChevronLeft size={16} className="text-blue-300/40 group-hover:text-cyan-400 group-hover:-translate-x-0.5 transition-all" />
+                </button>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
               <div className="flex items-center gap-3 shrink-0">
@@ -298,65 +306,75 @@ export const GameTable: React.FC = () => {
            <button onClick={() => window.location.reload()} className="w-full py-4 bg-slate-800 hover:bg-rose-900/20 hover:text-rose-500 hover:border-rose-500/30 border border-transparent rounded-xl text-[10px] font-black tracking-widest transition-all active:scale-95 uppercase">LEAVE TABLE</button>
         </div>
       </motion.aside>
+     </>
     )}
   </AnimatePresence>
 
       {/* Main Game Stage */}
-      <main className="flex-1 relative flex flex-col overflow-hidden">
+      <main className={cn(
+        "flex-1 relative flex flex-col overflow-hidden transition-all duration-500",
+        sidebarVisible ? "lg:pl-0" : ""
+      )}>
         
         {/* Disconnection Overlay */}
         {!isConnected && (
-            <div className="absolute inset-0 z-[100] bg-[#0c162e]/90 backdrop-blur-xl flex flex-col items-center justify-center text-center p-6">
+            <div className="absolute inset-0 z-[100] bg-slate-950/95 backdrop-blur-2xl flex flex-col items-center justify-center text-center p-6">
                 <motion.div 
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="bg-white/5 border-4 border-white/5 p-12 rounded-[3.5rem] shadow-[0_0_100px_rgba(244,63,94,0.2)] max-w-md backdrop-blur-md relative overflow-hidden"
+                    className="bg-white/5 border-2 border-white/10 p-10 sm:p-14 rounded-[3.5rem] shadow-[0_0_100px_rgba(244,63,94,0.1)] max-w-lg w-full backdrop-blur-md relative overflow-hidden"
                 >
-                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-rose-500/10 rounded-full blur-3xl" />
+                    <div className="absolute -top-12 -right-12 w-48 h-48 bg-rose-500/10 rounded-full blur-3xl" />
                     
-                    <div className="w-24 h-24 bg-rose-500/20 rounded-[2rem] flex items-center justify-center mb-8 mx-auto border-4 border-rose-500/30">
-                        <WifiOff className="w-12 h-12 text-rose-500 animate-pulse" />
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 bg-rose-500/10 rounded-[2.5rem] flex items-center justify-center mb-8 mx-auto border-2 border-rose-500/20">
+                        <WifiOff className="w-10 h-10 sm:w-12 sm:h-12 text-rose-500 animate-pulse" />
                     </div>
                     
-                    <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-tighter italic">Signal Lost</h2>
-                    <p className="text-rose-400 font-bold text-[10px] uppercase tracking-[0.4em] mb-6">Operative: {me.name}</p>
+                    <h2 className="text-3xl sm:text-4xl font-black text-white mb-3 uppercase tracking-tight italic">Link Severed</h2>
+                    <p className="text-rose-400 font-bold text-[10px] uppercase tracking-[0.4em] mb-8">Operative: {me.name}</p>
                     
-                    <p className="text-blue-200/40 text-sm mb-10 font-bold leading-relaxed uppercase tracking-widest italic px-4">
-                        Encryption link unstable. Attempting to recover secure channel to tactical center.
-                    </p>
+                    <div className="bg-black/40 rounded-3xl p-6 border border-white/5 mb-10">
+                        <p className="text-blue-200/60 text-xs sm:text-sm font-bold leading-relaxed uppercase tracking-widest italic mb-2">
+                             Secure channel instability detected. 
+                        </p>
+                        <p className="text-[10px] text-blue-300/30 uppercase tracking-[0.2em] font-black">
+                            Attempting automatic node recovery...
+                        </p>
+                    </div>
 
                     <div className="grid grid-cols-1 gap-4">
                         <button 
                             onClick={() => window.location.reload()}
-                            className="w-full bg-cyan-500 hover:bg-cyan-400 text-white font-black py-5 rounded-[1.5rem] transition-all uppercase tracking-widest text-xs border-b-4 border-cyan-700 shadow-xl active:translate-y-1 active:border-b-0"
+                            className="w-full bg-cyan-500 hover:bg-cyan-400 text-white font-black py-5 rounded-[2rem] transition-all uppercase tracking-widest text-xs border-b-6 border-cyan-700 shadow-2xl shadow-cyan-900/40 active:translate-y-1 active:border-b-0"
                         >
-                            Reconnect Now
+                            Reload Tactical Link
                         </button>
+                        
                         <div className="grid grid-cols-2 gap-4">
                             <button 
-                                onClick={() => window.location.href = '/'}
-                                className="bg-white/5 hover:bg-white/10 text-white/60 font-black py-4 rounded-[1.2rem] transition-all uppercase tracking-widest text-[9px] border border-white/10 flex items-center justify-center gap-2 group"
-                            >
-                                <LogOut size={14} className="group-hover:text-rose-500 transition-colors" />
-                                Leave Game
-                            </button>
-                            <button 
                                 onClick={() => {
-                                    // Switch to spectator if we want, but usually it's better to just reload with spectator true
                                     const url = new URL(window.location.href);
                                     url.searchParams.set('spectate', 'true');
                                     window.location.href = url.toString();
                                 }}
-                                className="bg-white/5 hover:bg-white/10 text-white/60 font-black py-4 rounded-[1.2rem] transition-all uppercase tracking-widest text-[9px] border border-white/10 flex items-center justify-center gap-2 group"
+                                className="bg-white/5 hover:bg-white/10 text-white/60 font-black py-4 rounded-[1.5rem] transition-all uppercase tracking-widest text-[9px] border border-white/10 flex items-center justify-center gap-2 group"
                             >
                                 <Eye size={14} className="group-hover:text-cyan-400 transition-colors" />
                                 Watch Mode
                             </button>
+                            <button 
+                                onClick={() => window.location.href = '/'}
+                                className="bg-white/5 hover:bg-white/10 text-white/60 font-black py-4 rounded-[1.5rem] transition-all uppercase tracking-widest text-[9px] border border-white/10 flex items-center justify-center gap-2 group"
+                            >
+                                <LogOut size={14} className="group-hover:text-rose-500 transition-colors" />
+                                Abandon Ops
+                            </button>
                         </div>
                     </div>
 
-                    <div className="mt-8 text-[9px] font-black text-rose-500/40 uppercase tracking-[0.2em] animate-pulse italic">
-                        Reconnection attempts: active
+                    <div className="mt-8 flex items-center justify-center gap-2 text-[8px] font-black text-rose-500/40 uppercase tracking-[0.2em] italic">
+                        <div className="w-1.5 h-1.5 bg-rose-500/40 rounded-full animate-ping" />
+                        Re-sync in progress
                     </div>
                 </motion.div>
             </div>
@@ -384,19 +402,19 @@ export const GameTable: React.FC = () => {
         </div>
 
         {/* The Table Stage */}
-        <div className="flex-1 flex items-center justify-center px-4 py-8 pointer-events-none overflow-hidden relative">
-          <div className="relative w-full max-w-5xl aspect-[18/10] bg-[#0E3524] rounded-[300px] border-[16px] border-[#131b2e] shadow-[0_0_120px_rgba(0,0,0,0.8),inset_0_0_100px_rgba(0,0,0,0.5)] flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center p-4 sm:p-8 pointer-events-none overflow-hidden relative">
+          <div className="relative w-full max-w-[95vw] lg:max-w-5xl aspect-[4/5] sm:aspect-[18/10] bg-[#0E3524] rounded-[100px] sm:rounded-[300px] border-[8px] sm:border-[16px] border-[#131b2e] shadow-[0_0_120px_rgba(0,0,0,0.8),inset_0_0_100px_rgba(0,0,0,0.5)] flex items-center justify-center mt-12 sm:mt-0">
              
              {/* Center Label */}
-             <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
-                <span className="text-8xl font-black text-white/10 italic select-none tracking-widest">OMI</span>
+             <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none overflow-hidden">
+                <span className="text-6xl sm:text-8xl font-black text-white/10 italic select-none tracking-widest">OMI</span>
              </div>
-
+ 
              {/* Center Play Area */}
-             <div className="relative w-[30%] aspect-square rounded-full flex items-center justify-center">
+             <div className="relative w-[40%] sm:w-[30%] aspect-square rounded-full flex items-center justify-center">
                 
                 {/* Discard Piles */}
-                <div className="absolute left-[-220px] top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-auto">
+                <div className="absolute left-[-100px] sm:left-[-220px] top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-auto scale-75 sm:scale-100">
                     <div className="relative w-12 h-16">
                         {game.discardedTricksCount[0] > 0 && Array.from({ length: Math.min(game.discardedTricksCount[0], 8) }).map((_, i) => (
                             <div 
@@ -408,8 +426,8 @@ export const GameTable: React.FC = () => {
                     </div>
                     <div className="text-[8px] font-black uppercase text-blue-300/30 tracking-[0.2em] whitespace-nowrap">We: {game.discardedTricksCount[0]}</div>
                 </div>
-
-                <div className="absolute right-[-220px] top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-auto">
+ 
+                <div className="absolute right-[-100px] sm:right-[-220px] top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 pointer-events-auto scale-75 sm:scale-100">
                     <div className="relative w-12 h-16">
                         {game.discardedTricksCount[1] > 0 && Array.from({ length: Math.min(game.discardedTricksCount[1], 8) }).map((_, i) => (
                             <div 
@@ -421,17 +439,19 @@ export const GameTable: React.FC = () => {
                     </div>
                     <div className="text-[8px] font-black uppercase text-blue-300/30 tracking-[0.2em] whitespace-nowrap">They: {game.discardedTricksCount[1]}</div>
                 </div>
-
+ 
                 <AnimatePresence>
                     {game.currentTrick.map((play) => {
                         const relIdx = getRelativePos(game.players.find(p => p.id === play.playerId)!.pos);
+                        const isMobile = window.innerWidth < 640;
+                        const offsetVal = isMobile ? 50 : 80;
                         const offsets = [
-                            { y: 80, x: 0, r: 0 },   // Bottom
-                            { y: 0, x: -80, r: -90 }, // Left
-                            { y: -80, x: 0, r: 180 },  // Top
-                            { y: 0, x: 80, r: 90 },   // Right
+                            { y: offsetVal, x: 0, r: 0 },   // Bottom
+                            { y: 0, x: -offsetVal, r: -90 }, // Left
+                            { y: -offsetVal, x: 0, r: 180 },  // Top
+                            { y: 0, x: offsetVal, r: 90 },   // Right
                         ];
-
+ 
                         const isResolving = !!game.lastTrickResult;
                         const winner = playersByPos.find(p => p?.name === game.lastTrickResult?.winnerName);
                         const winnerRelIdx = winner ? getRelativePos(winner.pos) : -1;
@@ -443,7 +463,7 @@ export const GameTable: React.FC = () => {
                             { y: -700, x: 0 },  // Top
                             { y: 0, x: 1200 },   // Right
                         ];
-
+ 
                         return (
                             <motion.div
                                 key={`${play.playerId}-${play.card.id}`}
@@ -469,84 +489,78 @@ export const GameTable: React.FC = () => {
                                 }}
                                 className="absolute z-20 pointer-events-auto"
                             >
-                                <Card card={play.card} disabled className="shadow-2xl scale-[0.7]" />
+                                <Card card={play.card} disabled className="shadow-2xl scale-[0.5] sm:scale-[0.7]" />
                             </motion.div>
                         );
                     })}
                 </AnimatePresence>
              </div>
-
+ 
              {/* Player Avatars around the table */}
              {playersByPos.map((p: Player | null, i) => {
                 if (!p) return null;
                 const posStyles = [
-                    "-bottom-12 left-1/2 -translate-x-1/2", // Bottom
-                    "-left-12 top-1/2 -translate-y-1/2",   // Left
-                    "-top-12 left-1/2 -translate-x-1/2",    // Top
-                    "-right-12 top-1/2 -translate-y-1/2",  // Right
+                    "-bottom-8 sm:-bottom-12 left-1/2 -translate-x-1/2", // Bottom
+                    "-left-8 sm:-left-12 top-1/2 -translate-y-1/2",   // Left
+                    "-top-8 sm:-top-12 left-1/2 -translate-x-1/2",    // Top
+                    "-right-8 sm:-right-12 top-1/2 -translate-y-1/2",  // Right
                 ];
                 const isCurrent = game.currentTurnIdx === p.pos;
                 const teamColor = p.team === me.team ? 'border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.3)]' : 'border-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.3)]';
-
+ 
                 return (
                     <motion.div 
                         key={p.id} 
                         initial={{ scale: 0.8, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
-                        className={`absolute ${posStyles[i]} z-20 flex flex-col items-center gap-3`}
+                        className={`absolute ${posStyles[i]} z-20 flex flex-col items-center gap-1 sm:gap-3`}
                     >
                         <div className={cn(
-                            "w-20 h-20 rounded-[2.5rem] border-4 bg-[#0c162e] flex items-center justify-center text-4xl shadow-2xl transition-all duration-500 relative group",
-                            isCurrent ? "scale-125 border-cyan-400 ring-8 ring-cyan-400/10" : `${teamColor} opacity-90`
+                            "w-14 h-14 sm:w-20 sm:h-20 rounded-[1.5rem] sm:rounded-[2.5rem] border-4 bg-[#0c162e] flex items-center justify-center text-2xl sm:text-4xl shadow-2xl transition-all duration-500 relative group",
+                            isCurrent ? "scale-110 sm:scale-125 border-cyan-400 ring-4 sm:ring-8 ring-cyan-400/10" : `${teamColor} opacity-90`
                         )}>
                             {p.avatar || '👨‍🚀'}
                             {isCurrent && (
-                                <div className="absolute -top-1 -right-1 w-6 h-6 bg-cyan-400 rounded-full border-4 border-[#0c162e] animate-bounce" />
+                                <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-6 sm:h-6 bg-cyan-400 rounded-full border-2 sm:border-4 border-[#0c162e] animate-bounce" />
                             )}
                             
                             {/* Prominent Card Count */}
-                            <div className="absolute -bottom-2 -left-2 bg-gradient-to-br from-indigo-600 to-blue-700 text-white text-[10px] font-black px-2 py-1 rounded-lg border border-white/20 shadow-xl flex items-center gap-1">
+                            <div className="absolute -bottom-1 sm:-bottom-2 -left-1 sm:-left-2 bg-gradient-to-br from-indigo-600 to-blue-700 text-white text-[8px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg border border-white/20 shadow-xl flex items-center gap-1">
                                 <span className="opacity-50">🎴</span>
                                 {p.handSize}
                             </div>
                         </div>
                         <div className={cn(
-                            "px-5 py-2 rounded-2xl border-2 backdrop-blur-3xl flex flex-col items-center min-w-[100px] shadow-xl",
+                            "px-3 sm:px-5 py-1 sm:py-2 rounded-xl sm:rounded-2xl border-2 backdrop-blur-3xl flex flex-col items-center min-w-[80px] sm:min-w-[100px] shadow-xl",
                             isCurrent ? "bg-cyan-400/20 border-cyan-400/40" : "bg-black/60 border-white/5"
                         )}>
-                            <span className="text-[11px] font-black uppercase tracking-widest text-white truncate max-w-[100px]">{p.name}</span>
-                            <div className="flex gap-1 mt-2">
-                                {Array(p.handSize).fill(0).map((_, idx) => (
-                                    <motion.div 
-                                        key={idx} 
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        className="w-1 h-1 bg-cyan-400/20 rounded-full" 
-                                    />
+                            <span className="text-[9px] sm:text-[11px] font-black uppercase tracking-widest text-white truncate max-w-[70px] sm:max-w-[100px]">{p.name}</span>
+                            <div className="flex gap-1 mt-1 sm:mt-2">
+                                {Array(Math.min(p.handSize, 4)).fill(0).map((_, idx) => (
+                                    <div key={idx} className="w-1 h-1 bg-cyan-400/20 rounded-full" />
                                 ))}
                             </div>
-                            <div className="mt-1 text-[9px] font-black text-cyan-400/60 uppercase">Tricks: {game.tricksWon[p.team]}</div>
                         </div>
                     </motion.div>
                 );
              })}
           </div>
         </div>
-
+ 
         {/* Bottom Section: Hand & Status */}
         <div className={cn(
-            "h-64 bg-gradient-to-t from-[#0c162e]/80 to-transparent flex flex-col items-center justify-end pb-8 z-30 shrink-0",
+            "h-48 sm:h-64 bg-gradient-to-t from-[#0c162e] to-transparent flex flex-col items-center justify-end pb-4 sm:pb-8 z-30 shrink-0",
             isSpectator ? "pointer-events-none opacity-60 grayscale" : ""
         )}>
           {isSpectator ? (
-             <div className="mb-12 text-center">
-                <div className="inline-flex items-center gap-3 px-10 py-4 bg-white/5 border-2 border-white/5 rounded-full shadow-2xl backdrop-blur-md">
-                    <Eye size={20} className="text-cyan-400" />
-                    <span className="text-[12px] font-black uppercase tracking-[0.4em] text-white italic">Spectating Match</span>
+             <div className="mb-6 sm:mb-12 text-center px-4">
+                <div className="inline-flex items-center gap-3 px-6 sm:px-10 py-3 sm:py-4 bg-white/5 border-2 border-white/5 rounded-full shadow-2xl backdrop-blur-md">
+                    <Eye size={16} className="text-cyan-400" />
+                    <span className="text-[10px] sm:text-[12px] font-black uppercase tracking-[0.4em] text-white italic">Spectating Match</span>
                 </div>
              </div>
           ) : (
-            <div className="flex -space-x-14 sm:-space-x-12 pointer-events-auto items-center justify-center mb-4">
+            <div className="flex -space-x-12 sm:-space-x-12 pointer-events-auto items-center justify-center mb-0 sm:mb-4 px-4 overflow-x-auto w-full no-scrollbar">
                 <AnimatePresence>
                     {me.hand.map((card, idx) => {
                         const isLegal = () => {
@@ -558,7 +572,7 @@ export const GameTable: React.FC = () => {
                         };
                         const legal = isLegal();
                         const fanRotation = (idx - (me.hand.length / 2)) * 4;
-
+ 
                         return (
                             <motion.div
                                 key={card.id}
@@ -567,14 +581,14 @@ export const GameTable: React.FC = () => {
                                     y: 0, 
                                     rotate: fanRotation, 
                                     opacity: legal ? 1 : 0.4,
-                                    scale: legal ? 0.85 : 0.8,
+                                    scale: legal ? (window.innerWidth < 640 ? 0.7 : 0.85) : 0.8,
                                     filter: legal ? 'brightness(1)' : 'brightness(0.5) contrast(0.8)'
                                 }}
-                                whileHover={legal && isMyTurn ? { y: -80, rotate: 0, zIndex: 100, scale: 1 } : {}}
+                                whileHover={legal && isMyTurn ? { y: -80, rotate: 0, zIndex: 100, scale: (window.innerWidth < 640 ? 0.8 : 1) } : {}}
                                 onClick={() => isMyTurn && legal && playCard(card.id)}
                                 exit={{ y: -500, opacity: 0, scale: 0.2 }}
                                 className={cn(
-                                    "transition-all duration-300 origin-bottom pointer-events-auto",
+                                    "transition-all duration-300 origin-bottom pointer-events-auto shrink-0",
                                     legal && isMyTurn ? "cursor-pointer" : "cursor-not-allowed"
                                 )}
                                 style={{ zIndex: idx }}
@@ -583,7 +597,7 @@ export const GameTable: React.FC = () => {
                                     card={card} 
                                     disabled={!isMyTurn || !legal}
                                     className={cn(
-                                        "ring-offset-8 ring-offset-[#131b2e] transition-all duration-300 rounded-[2rem]",
+                                        "ring-offset-8 ring-offset-[#131b2e] transition-all duration-300 rounded-xl sm:rounded-[2rem]",
                                         isMyTurn && legal && "hover:ring-4 hover:ring-cyan-400 shadow-[0_0_40px_rgba(34,211,238,0.4)]"
                                     )}
                                 />
@@ -593,16 +607,16 @@ export const GameTable: React.FC = () => {
                 </AnimatePresence>
             </div>
           )}
-
-          <div className="mt-4 flex items-center gap-8">
+ 
+          <div className="mt-2 sm:mt-4 flex items-center gap-8">
             <AnimatePresence>
                 {isMyTurn && !isSpectator && (
                     <motion.div 
                         initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                        className="flex items-center gap-4 bg-cyan-400/20 border-2 border-cyan-400/40 px-10 py-3 rounded-full shadow-[0_0_30px_rgba(34,211,238,0.2)]"
+                        className="flex items-center gap-4 bg-cyan-400/20 border-2 border-cyan-400/40 px-6 sm:px-10 py-2 sm:py-3 rounded-full shadow-[0_0_30px_rgba(34,211,238,0.2)]"
                     >
                         <div className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></div>
-                        <span className="text-[12px] font-black uppercase tracking-[0.4em] text-white italic">Your Turn</span>
+                        <span className="text-[10px] sm:text-[12px] font-black uppercase tracking-[0.4em] text-white italic">Your Turn</span>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -692,9 +706,20 @@ export const GameTable: React.FC = () => {
                          </motion.div>
 
                          <h2 className="text-[12px] font-black text-cyan-400 uppercase tracking-[0.5em] mb-4 italic">Campaign Concluded</h2>
-                         <h1 className="text-7xl font-black text-white italic tracking-tighter mb-8 uppercase drop-shadow-2xl">
+                         <h1 className="text-7xl font-black text-white italic tracking-tighter mb-4 uppercase drop-shadow-2xl">
                             {game.winnerTeam === me.team ? 'VICTORY' : 'DEFEAT'}
                          </h1>
+
+                         <div className="flex justify-center gap-4 mb-8">
+                            {game.players.filter(p => p.team === game.winnerTeam).map(p => (
+                                <div key={p.id} className="flex flex-col items-center gap-2">
+                                    <div className="w-16 h-16 rounded-2xl bg-white/10 border-2 border-cyan-400/30 flex items-center justify-center text-3xl shadow-lg">
+                                        {p.avatar}
+                                    </div>
+                                    <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">{p.name}</span>
+                                </div>
+                            ))}
+                         </div>
                          
                          <div className="bg-white/5 rounded-[2.5rem] p-8 border-2 border-white/5 mb-12 flex justify-center items-center gap-12">
                             <div className="text-center">
@@ -951,42 +976,42 @@ export const GameTable: React.FC = () => {
         </AnimatePresence>
 
         {/* Floating Utility Buttons */}
-        <div className="absolute bottom-10 right-10 z-[60] flex flex-col gap-5">
+        <div className="fixed sm:absolute bottom-6 sm:bottom-10 right-6 sm:right-10 z-[60] flex sm:flex-col gap-3 sm:gap-5">
             {game.lastTrick && (
                 <motion.button 
                     whileHover={{ scale: 1.1, rotate: -10 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setShowLastTrickOverlay(true)}
-                    className="bg-cyan-500/20 backdrop-blur-2xl p-5 rounded-3xl text-cyan-400 border-2 border-cyan-400/30 hover:bg-cyan-500/30 transition-all shadow-[0_0_40px_rgba(34,211,238,0.2)] group"
+                    className="bg-cyan-500/20 backdrop-blur-2xl p-4 sm:p-5 rounded-2xl sm:rounded-3xl text-cyan-400 border-2 border-cyan-400/30 hover:bg-cyan-500/30 transition-all shadow-xl group"
                 >
-                    <Eye className="w-6 h-6" />
+                    <Eye className="w-5 h-5 sm:w-6 sm:h-6" />
                 </motion.button>
             )}
             <motion.button 
                 whileHover={{ scale: 1.1, rotate: -10 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setShowSettings(true)}
-                className="bg-[#0c162e]/60 backdrop-blur-2xl p-5 rounded-3xl text-blue-300/60 border-2 border-white/5 hover:bg-white/10 hover:text-white transition-all shadow-2xl group"
+                className="bg-[#0c162e]/60 backdrop-blur-2xl p-4 sm:p-5 rounded-2xl sm:rounded-3xl text-blue-300/60 border-2 border-white/5 hover:bg-white/10 hover:text-white transition-all shadow-xl group"
             >
-                <Settings2 className="w-6 h-6 group-hover:rotate-90 transition-transform" />
+                <Settings2 className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-90 transition-transform" />
             </motion.button>
             <motion.button 
                 whileHover={{ scale: 1.1, rotate: -10 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setShowHistory(true)}
-                className="bg-[#0c162e]/60 backdrop-blur-2xl p-5 rounded-3xl text-blue-300/60 border-2 border-white/5 hover:bg-white/10 hover:text-white transition-all shadow-2xl group"
+                className="bg-[#0c162e]/60 backdrop-blur-2xl p-4 sm:p-5 rounded-2xl sm:rounded-3xl text-blue-300/60 border-2 border-white/5 hover:bg-white/10 hover:text-white transition-all shadow-xl group"
             >
-                <History className="w-6 h-6" />
+                <History className="w-5 h-5 sm:w-6 sm:h-6" />
             </motion.button>
             <motion.button 
                 whileHover={{ scale: 1.1, rotate: 10 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setShowChat(!showChat)}
-                className="bg-[#0c162e]/60 backdrop-blur-2xl p-5 rounded-3xl text-blue-300/60 border-2 border-white/5 hover:bg-white/10 hover:text-white transition-all shadow-2xl relative group"
+                className="bg-[#0c162e]/60 backdrop-blur-2xl p-4 sm:p-5 rounded-2xl sm:rounded-3xl text-blue-300/60 border-2 border-white/5 hover:bg-white/10 hover:text-white transition-all shadow-xl relative group"
             >
-                <MessageSquare className="w-6 h-6" />
+                <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
                 {game.chat.length > 0 && !showChat && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full border-4 border-[#0c162e] shadow-lg animate-bounce" />
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full border-2 border-[#0c162e] shadow-lg animate-bounce" />
                 )}
             </motion.button>
         </div>
@@ -998,7 +1023,7 @@ export const GameTable: React.FC = () => {
                     initial={{ x: 400 }}
                     animate={{ x: 0 }}
                     exit={{ x: 400 }}
-                    className="absolute top-0 right-0 bottom-0 w-80 bg-[#0c162e]/95 backdrop-blur-3xl border-l-4 border-blue-900/30 z-[70] flex flex-col shadow-[-40px_0_100px_rgba(0,0,0,0.6)]"
+                    className="fixed lg:absolute top-0 right-0 bottom-0 w-full sm:w-80 bg-[#0c162e]/95 backdrop-blur-3xl border-l-4 border-blue-900/30 z-[70] flex flex-col shadow-2xl"
                 >
                     <div className="p-6 border-b-2 border-white/5 flex justify-between items-center bg-white/5">
                         <div className="flex items-center gap-3">
@@ -1113,46 +1138,53 @@ export const GameTable: React.FC = () => {
                             </div>
 
                             {/* Sound Toggle Setting */}
-                            <div className="space-y-4">
-                                <label className="text-[10px] font-black text-blue-300 uppercase tracking-[0.3em] italic px-4">Audio Configuration</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <button 
                                     onClick={() => {
-                                        const muted = soundManager.toggleMute();
-                                        setIsMuted(muted);
+                                        const muted = soundManager.toggleBGMMute();
+                                        setIsBGMMuted(muted);
                                     }}
-                                    className="w-full flex items-center justify-between p-6 bg-white/5 border-2 border-white/5 rounded-3xl hover:bg-white/10 transition-all group"
+                                    className="flex flex-col items-center gap-4 p-6 bg-white/5 border-2 border-white/5 rounded-3xl hover:bg-white/10 transition-all group"
                                 >
-                                    <div className="flex items-center gap-4">
-                                        <div className={cn(
-                                            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
-                                            isMuted ? "bg-rose-500/20 text-rose-500" : "bg-cyan-500/20 text-cyan-400"
-                                        )}>
-                                            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="text-sm font-black text-white uppercase italic">Match Audio</p>
-                                            <p className="text-[10px] text-blue-300/30 uppercase font-black uppercase tracking-widest">{isMuted ? 'Muted' : 'Operational'}</p>
-                                        </div>
-                                    </div>
                                     <div className={cn(
-                                        "w-14 h-8 rounded-full p-1 transition-all",
-                                        isMuted ? "bg-slate-800" : "bg-cyan-500"
+                                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                                        isBGMMuted ? "bg-rose-500/20 text-rose-500" : "bg-cyan-500/20 text-cyan-400"
                                     )}>
-                                        <div className={cn(
-                                            "w-6 h-6 bg-white rounded-full transition-all transform",
-                                            isMuted ? "translate-x-0" : "translate-x-6"
-                                        )} />
+                                        {isBGMMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[10px] font-black text-white uppercase italic">Ambient Music</p>
+                                        <p className="text-[8px] text-blue-300/30 uppercase font-black tracking-widest">{isBGMMuted ? 'Offline' : 'Operational'}</p>
+                                    </div>
+                                </button>
+
+                                <button 
+                                    onClick={() => {
+                                        const muted = soundManager.toggleSFXMute();
+                                        setIsSFXMuted(muted);
+                                    }}
+                                    className="flex flex-col items-center gap-4 p-6 bg-white/5 border-2 border-white/5 rounded-3xl hover:bg-white/10 transition-all group"
+                                >
+                                    <div className={cn(
+                                        "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
+                                        isSFXMuted ? "bg-rose-500/20 text-rose-500" : "bg-indigo-500/20 text-indigo-400"
+                                    )}>
+                                        {isSFXMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[10px] font-black text-white uppercase italic">Tactical FX</p>
+                                        <p className="text-[8px] text-blue-300/30 uppercase font-black tracking-widest">{isSFXMuted ? 'Offline' : 'Operational'}</p>
                                     </div>
                                 </button>
                             </div>
-                         </div>
+                        </div>
 
-                         <button 
+                        <button 
                             onClick={() => setShowSettings(false)}
                             className="mt-16 w-full py-6 bg-white/5 hover:bg-white/10 text-white font-black rounded-[2rem] transition-all uppercase tracking-widest text-xs border border-white/10"
-                         >
+                        >
                             Apply Protocol
-                         </button>
+                        </button>
                     </motion.div>
                 </div>
             )}

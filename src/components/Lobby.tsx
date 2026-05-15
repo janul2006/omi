@@ -55,32 +55,32 @@ export const Lobby: React.FC<LobbyProps> = ({ onBack, onPlay }) => {
   };
 
   const CharCard = ({ char, onPrev, onNext, label, used }: { char: Character, onPrev: () => void, onNext: () => void, label: string, used?: boolean }) => (
-    <div className="flex flex-col items-center gap-2">
-        <span className="text-xs font-black uppercase tracking-widest text-blue-300/50 mb-1">{label}</span>
-        <div className="flex items-center gap-4">
-            <button onClick={onPrev} className="p-2 bg-white/5 hover:bg-white/10 rounded-full text-white transition-colors">
-                <ChevronLeft size={24} />
+    <div className="flex flex-col items-center gap-2 w-full max-w-sm">
+        <span className="text-[10px] font-black uppercase tracking-widest text-blue-300/50 mb-1">{label}</span>
+        <div className="flex items-center justify-between w-full gap-2 sm:gap-4">
+            <button onClick={onPrev} className="p-2 sm:p-3 bg-white/5 hover:bg-white/10 rounded-full text-white transition-colors">
+                <ChevronLeft size={20} />
             </button>
             <motion.div 
                 key={char.id}
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 className={cn(
-                    "w-48 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-4 flex flex-col items-center shadow-2xl relative overflow-hidden group transition-all",
+                    "flex-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-[2rem] p-4 flex flex-col items-center shadow-2xl relative overflow-hidden group transition-all",
                     used && "grayscale opacity-50 brightness-50"
                 )}
             >
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="text-5xl mb-3 z-10">{char.avatar}</div>
-                <div className="text-white font-bold text-lg z-10">{char.name}</div>
-                <div className="flex gap-1 mt-1 z-10">
+                <div className="text-4xl sm:text-5xl mb-2 z-10">{char.avatar}</div>
+                <div className="text-white font-black text-sm sm:text-base z-10 uppercase tracking-tight italic">{char.name}</div>
+                <div className="flex gap-1 mt-2 z-10">
                     {[...Array(3)].map((_, i) => (
-                        <div key={i} className={cn("w-2 h-2 rounded-full", i < char.stars ? "bg-yellow-400" : "bg-white/10")} />
+                        <div key={i} className={cn("w-1.5 h-1.5 rounded-full", i < char.stars ? "bg-cyan-400" : "bg-white/10")} />
                     ))}
                 </div>
             </motion.div>
-            <button onClick={onNext} className="p-2 bg-white/5 hover:bg-white/10 rounded-full text-white transition-colors">
-                <ChevronRight size={24} />
+            <button onClick={onNext} className="p-2 sm:p-3 bg-white/5 hover:bg-white/10 rounded-full text-white transition-colors">
+                <ChevronRight size={20} />
             </button>
         </div>
     </div>
@@ -88,15 +88,15 @@ export const Lobby: React.FC<LobbyProps> = ({ onBack, onPlay }) => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md bg-[#0c162e]/80 backdrop-blur-2xl border-4 border-blue-900/50 rounded-[3rem] p-10 shadow-[0_0_100px_rgba(30,58,138,0.5)] flex flex-col items-center gap-8 relative">
+      <div className="w-full max-w-md bg-[#0c162e]/90 backdrop-blur-3xl border-2 sm:border-4 border-blue-900/50 rounded-[2.5rem] sm:rounded-[3rem] p-6 sm:p-10 shadow-[0_0_100px_rgba(30,58,138,0.5)] flex flex-col items-center gap-6 sm:gap-8 relative overflow-hidden">
         
-        <button onClick={onBack} className="absolute top-8 left-8 p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-white transition-colors">
-            <ArrowLeft size={20} />
+        <button onClick={onBack} className="absolute top-6 left-6 p-3 bg-white/5 hover:bg-white/10 rounded-xl text-white transition-colors z-20">
+            <ArrowLeft size={18} />
         </button>
         
-        <h2 className="text-5xl font-black text-white uppercase tracking-tighter italic border-b-4 border-cyan-400 pb-2">Lobby</h2>
+        <h2 className="text-4xl sm:text-5xl font-black text-white uppercase tracking-tighter italic border-b-4 border-cyan-400 pb-2 relative z-10">Lobby</h2>
 
-        <div className="w-full space-y-10 overflow-y-auto max-h-[60vh] pr-2 custom-scrollbar">
+        <div className="w-full space-y-8 sm:space-y-10 overflow-y-auto max-h-[50vh] sm:max-h-[60vh] pr-1 custom-scrollbar relative z-10">
             <CharCard 
                 label="Partner" 
                 char={CHARACTERS[partnerIdx]} 

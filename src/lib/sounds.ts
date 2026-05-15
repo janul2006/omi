@@ -11,11 +11,12 @@ export const SOUNDS = {
 class SoundManager {
   private sounds: Record<string, HTMLAudioElement> = {};
   private bgm: HTMLAudioElement | null = null;
-  private isMuted: boolean = localStorage.getItem('omi_muted') === 'true';
+  private isBGMMuted: boolean = localStorage.getItem('omi_bgm_muted') === 'true';
+  private isSFXMuted: boolean = localStorage.getItem('omi_sfx_muted') === 'true';
   private bgmVolume: number = 0.05;
 
   play(key: keyof typeof SOUNDS) {
-    if (this.isMuted) return;
+    if (this.isSFXMuted) return;
     try {
       if (!this.sounds[key]) {
         this.sounds[key] = new Audio(SOUNDS[key]);
@@ -32,7 +33,7 @@ class SoundManager {
   }
 
   startBGM() {
-    if (this.bgm || this.isMuted) return;
+    if (this.bgm || this.isBGMMuted) return;
     try {
       this.bgm = new Audio(SOUNDS.BGM); 
       this.bgm.loop = true;
@@ -57,20 +58,29 @@ class SoundManager {
     if (this.bgm) this.bgm.volume = val;
   }
 
-  toggleMute() {
-    this.isMuted = !this.isMuted;
-    localStorage.setItem('omi_muted', String(this.isMuted));
-    if (this.isMuted) {
+  toggleBGMMute() {
+    this.isBGMMuted = !this.isBGMMuted;
+    localStorage.setItem('omi_bgm_muted', String(this.isBGMMuted));
+    if (this.isBGMMuted) {
       this.stopBGM();
     } else {
       this.startBGM();
     }
-    return this.isMuted;
+    return this.isBGMMuted;
+  }
+
+  toggleSFXMute() {
+    this.isSFXMuted = !this.isSFXMuted;
+    localStorage.setItem('omi_sfx_muted', String(this.isSFXMuted));
+    return this.isSFXMuted;
   }
 
   isSoundMuted() {
-    return this.isMuted;
+    return this.isSFXMuted && this.isBGMMuted;
   }
+
+  getBGMState() { return this.isBGMMuted; }
+  getSFXState() { return this.isSFXMuted; }
 }
 
 export const soundManager = new SoundManager();
