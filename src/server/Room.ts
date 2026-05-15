@@ -27,6 +27,7 @@ export class Room {
       scores: [0, 0],
       winnerTeam: null,
       lastTrick: null,
+      lastTrickResult: null,
       history: []
     };
   }
@@ -149,7 +150,7 @@ export class Room {
     this.addLog(`Trump set to ${suit}. First turn: ${this.state.players[this.state.currentTurnIdx].name}`);
   }
 
-  playCard(playerId: string, cardId: string) {
+  async playCard(playerId: string, cardId: string, io: Server) {
     if (this.state.phase !== 'PLAYING') return;
     if (this.state.players[this.state.currentTurnIdx].id !== playerId) return;
 
@@ -165,20 +166,34 @@ export class Room {
     this.state.currentTrick.push({ playerId, card });
 
     if (this.state.currentTrick.length === 4) {
-      this.resolveTrick();
+      await this.resolveTrick(io);
     } else {
       this.state.currentTurnIdx = (this.state.currentTurnIdx + 1) % 4;
+      this.broadcastState(io);
+      this.checkBotTurn(io);
     }
   }
 
-  private resolveTrick() {
+  private async resolveTrick(io: Server) {
     const winnerIdxInTrick = GameEngine.getTrickWinner(this.state.currentTrick, this.state.trumpSuit);
     const winnerId = this.state.currentTrick[winnerIdxInTrick].playerId;
     const winnerPlayer = this.state.players.find(p => p.id === winnerId)!;
     
     this.state.tricksWon[winnerPlayer.team]++;
     this.state.lastTrick = [...this.state.currentTrick];
+    this.state.lastTrickResult = {
+      winnerName: winnerPlayer.name,
+      winningCard: this.state.currentTrick[winnerIdxInTrick].card
+    };
+    
+    // Broadcast state so cards stay on table for a bit
+    this.broadcastState(io);
+
+    // Pause for 1.8 seconds to see result
+    await new Promise(resolve => setTimeout(resolve, 1800));
+
     this.state.currentTrick = [];
+    this.state.lastTrickResult = null;
     this.state.currentTurnIdx = winnerPlayer.pos;
 
     if (this.state.players[0].handSize === 0) {
@@ -272,9 +287,7 @@ export class Room {
       const legalCards = hand.filter(card => GameEngine.isMoveLegal(card, hand, this.state.currentTrick));
       const cardToPlay = legalCards[Math.floor(Math.random() * legalCards.length)];
       if (cardToPlay) {
-        this.playCard(currentPlayer.id, cardToPlay.id);
-        this.broadcastState(io);
-        this.checkBotTurn(io);
+        await this.playCard(currentPlayer.id, cardToPlay.id, io);
       }
     }
   }

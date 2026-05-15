@@ -64,12 +64,10 @@ async function startServer() {
       }
     });
 
-    socket.on("play_card", ({ roomId, playerId, cardId }) => {
+    socket.on("play_card", async ({ roomId, playerId, cardId }) => {
       const room = rooms.get(roomId);
       if (room) {
-        room.playCard(playerId, cardId);
-        room.broadcastState(io);
-        room.checkBotTurn(io);
+        await room.playCard(playerId, cardId, io);
       }
     });
 

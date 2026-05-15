@@ -35,6 +35,10 @@ export interface GameState {
   winnerTeam: number | null;
   lastTrick: { playerId: string; card: Card }[] | null;
   history: string[]; // For chat or game logs
+  lastTrickResult: {
+    winnerName: string;
+    winningCard: Card;
+  } | null;
 }
 
 // Client-only view of the player (authenticated)
