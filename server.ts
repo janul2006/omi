@@ -40,25 +40,21 @@ async function startServer() {
     socket.on("ready", ({ roomId, playerId }) => {
       const room = rooms.get(roomId);
       if (room) {
-        room.handleReady(playerId);
-        room.broadcastState(io);
-        room.checkBotTurn(io);
+        room.handleReady(playerId, io);
       }
     });
 
-    socket.on("add_bot", ({ roomId }) => {
+    socket.on("add_bot", ({ roomId, difficulty, style }) => {
       const room = rooms.get(roomId);
       if (room) {
-        room.addBot();
-        room.broadcastState(io);
-        room.checkBotTurn(io);
+        room.addBot(io, difficulty, style);
       }
     });
 
-    socket.on("fill_bots", ({ roomId }) => {
+    socket.on("fill_bots", ({ roomId, difficulty, style }) => {
       const room = rooms.get(roomId);
       if (room) {
-        room.fillWithBots(io);
+        room.fillWithBots(io, difficulty, style);
         room.checkBotTurn(io);
       }
     });
@@ -76,6 +72,14 @@ async function startServer() {
       const room = rooms.get(roomId);
       if (room) {
         await room.playCard(playerId, cardId, io);
+      }
+    });
+
+    socket.on("send_message", ({ roomId, playerId, text }) => {
+      const room = rooms.get(roomId);
+      if (room) {
+        room.addChatMessage(playerId, text);
+        room.broadcastState(io);
       }
     });
 

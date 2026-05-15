@@ -1,4 +1,4 @@
-import { Card, Suit, Rank } from '../types.js';
+import { Card, Suit, Rank, Player, BotDifficulty } from '../types.js';
 import _ from 'lodash';
 
 const SUITS: Suit[] = ['CLUBS', 'DIAMONDS', 'HEARTS', 'SPADES'];
@@ -50,8 +50,18 @@ export class GameEngine {
   }
 
   static getBotPlay(hand: Card[], currentTrick: { playerId: string; card: Card }[], trumpSuit: Suit | null, playerPos: number, players: Player[]): Card {
+    const bot = players[playerPos];
+    const difficulty = bot.botDifficulty || 'TACTICAL';
     const legalCards = hand.filter(card => this.isMoveLegal(card, hand, currentTrick));
     
+    // EASY mode: Just pick a random legal card
+    if (difficulty === 'EASY') {
+        return _.sample(legalCards) || legalCards[0];
+    }
+
+    // ELITE mode: same as tactical but maybe more aggressive? 
+    // For now ELITE uses same logic as TACTICAL.
+
     // 1. If leading the trick
     if (currentTrick.length === 0) {
         // Play strongest card of a suit we have Most of

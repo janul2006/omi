@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store.js';
 import { Trophy, Users, Play, Heart, Eye } from 'lucide-react';
+import { BotDifficulty } from '../types.js';
+import { cn } from '../lib/utils.js';
 
 export const Landing: React.FC = () => {
   const [name, setName] = useState('');
   const [room, setRoom] = useState('');
+  const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('TACTICAL');
+  const [aiOpponent, setAiOpponent] = useState('AGENT');
   const connect = useGameStore(state => state.connect);
 
   useEffect(() => {
@@ -15,6 +19,9 @@ export const Landing: React.FC = () => {
 
   const handleJoin = (isSpectator: boolean = false) => {
     if (name && room) {
+      // Save preferences to local storage for use in game
+      localStorage.setItem('omi_bot_difficulty', botDifficulty);
+      localStorage.setItem('omi_bot_style', aiOpponent);
       connect(room, name, isSpectator);
     }
   };
@@ -41,6 +48,44 @@ export const Landing: React.FC = () => {
               className="w-full bg-[#0A0A0B] border-2 border-slate-800/50 rounded-2xl px-6 py-5 text-white focus:outline-none focus:border-emerald-600 focus:ring-8 focus:ring-emerald-600/5 transition-all placeholder:text-slate-700 font-bold"
               placeholder="ENTER CALLSIGN"
             />
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">AI Difficulty</label>
+                <div className="flex gap-2">
+                    {(['EASY', 'TACTICAL', 'ELITE'] as BotDifficulty[]).map(d => (
+                        <button
+                            key={d}
+                            onClick={() => setBotDifficulty(d)}
+                            className={cn(
+                                "px-2 py-1 rounded-md text-[8px] font-black border transition-all",
+                                botDifficulty === d ? "bg-emerald-600 border-emerald-500 text-white" : "bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-300"
+                            )}
+                        >
+                            {d}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="flex items-center justify-between px-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">AI Personality</label>
+                <div className="flex gap-2">
+                    {['AGENT', 'CYBORG', 'GHOST'].map(p => (
+                        <button
+                            key={p}
+                            onClick={() => setAiOpponent(p)}
+                            className={cn(
+                                "px-2 py-1 rounded-md text-[8px] font-black border transition-all",
+                                aiOpponent === p ? "bg-blue-600 border-blue-500 text-white" : "bg-slate-800 border-slate-700 text-slate-500 hover:text-slate-300"
+                            )}
+                        >
+                            {p}
+                        </button>
+                    ))}
+                </div>
+            </div>
           </div>
 
           <div className="space-y-2 group">

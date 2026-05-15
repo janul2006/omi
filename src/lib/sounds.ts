@@ -15,6 +15,7 @@ class SoundManager {
         this.sounds[key] = new Audio(SOUNDS[key]);
       }
       const sound = this.sounds[key];
+      sound.volume = 0.2; // 20% volume
       sound.currentTime = 0;
       sound.play().catch(e => console.warn('Audio play failed:', e));
     } catch (e) {

@@ -6,6 +6,7 @@ import { Suit, Player } from '../types.js';
 import { Trophy, MessageSquare, Shield, Clock, QrCode, Copy, Link, Eye, Share2 } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 import { QRCodeCanvas } from 'qrcode.react';
+import { PanelLeft, MessageSquare, History, Send, WifiOff } from 'lucide-react';
 
 import { soundManager } from '../lib/sounds.js';
 
@@ -17,27 +18,25 @@ const suitSymbols: Record<Suit, string> = {
 };
 
 export const GameTable: React.FC = () => {
-  const { game, me, ready, setTrump, playCard, fillBots, isSpectator } = useGameStore();
+  const { game, me, ready, setTrump, playCard, fillBots, isSpectator, isConnected, sendMessage, matchHistory } = useGameStore();
+  const [showChat, setShowChat] = React.useState(false);
+  const [showHistory, setShowHistory] = React.useState(false);
+  const [chatInp, setChatInp] = React.useState('');
+  const chatScrollRef = React.useRef<HTMLDivElement>(null);
+
+  // Auto scroll chat
+  React.useEffect(() => {
+    if (chatScrollRef.current) {
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [game?.chat.length, showChat]);
 
   // Play sounds based on state changes
   React.useEffect(() => {
     if (!game) return;
     
-    // Card played
-    const currentTrickLength = game.currentTrick.length;
-    if (currentTrickLength > 0) {
-        soundManager.play('CARD_PLAY');
-    }
-  }, [game?.currentTrick.length]);
-
-  React.useEffect(() => {
-    if (game?.phase === 'PLAYING') {
-        soundManager.play('GAME_START');
-    }
-  }, [game?.phase]);
-
-  React.useEffect(() => {
-    if (game?.lastTrickResult) {
+    // Only play trick win sound
+    if (game.lastTrickResult) {
         soundManager.play('TRICK_WIN');
     }
   }, [game?.lastTrickResult?.winnerName]);
@@ -76,7 +75,7 @@ export const GameTable: React.FC = () => {
     playersByPos[getRelativePos(p.pos)] = p;
   });
 
-  const isMyTurn = game.currentTurnIdx === me.pos && game.phase === 'PLAYING';
+  const isMyTurn = game.currentTurnIdx === me.pos && game.phase === 'PLAYING' && !game.lastTrickResult;
   const isMyTrumpCall = game.trumpCallerIdx === me.pos && game.phase === 'TRUMP_CALLING';
 
   return (
@@ -196,6 +195,29 @@ export const GameTable: React.FC = () => {
 
       {/* Main Game Stage */}
       <main className="flex-1 relative bg-[#0A0A0B] flex flex-col overflow-hidden">
+        
+        {/* Disconnection Overlay */}
+        {!isConnected && (
+            <div className="absolute inset-0 z-[100] bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center text-center p-6">
+                <motion.div 
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl max-w-sm"
+                >
+                    <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-4 mx-auto border border-slate-700">
+                        <WifiOff className="w-8 h-8 text-rose-500 animate-pulse" />
+                    </div>
+                    <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">SIGNAL INTERRUPTED</h2>
+                    <p className="text-slate-400 text-sm mb-8 font-medium">Link to command server detached. Attempting to re-establish secure line...</p>
+                    <button 
+                        onClick={() => window.location.reload()}
+                        className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-black py-4 rounded-2xl transition-all uppercase tracking-widest text-xs border border-slate-700"
+                    >
+                        Hard Reset
+                    </button>
+                </motion.div>
+            </div>
+        )}
         {/* Trump Indicator Floating */}
         <div className="absolute top-8 left-1/2 -translate-x-1/2 z-20">
           <div className="bg-black/40 backdrop-blur-xl px-6 py-2 rounded-full border border-slate-700/50 flex items-center gap-4 shadow-2xl">
@@ -354,14 +376,17 @@ export const GameTable: React.FC = () => {
                                     scale: legal ? 0.75 : 0.7,
                                     filter: legal ? 'brightness(1)' : 'brightness(0.3) grayscale(0.5)'
                                 }}
-                                whileHover={legal ? { y: -50, rotate: 0, zIndex: 100, scale: 0.9 } : {}}
+                                whileHover={legal && isMyTurn ? { y: -50, rotate: 0, zIndex: 100, scale: 0.9 } : {}}
+                                onClick={() => isMyTurn && legal && playCard(card.id)}
                                 exit={{ y: -100, opacity: 0 }}
-                                className="transition-all duration-300 origin-bottom"
+                                className={cn(
+                                    "transition-all duration-300 origin-bottom pointer-events-auto cursor-pointer",
+                                    !legal || !isMyTurn ? "cursor-not-allowed" : ""
+                                )}
                                 style={{ zIndex: idx }}
                             >
                                 <Card 
                                     card={card} 
-                                    onClick={() => playCard(card.id)} 
                                     disabled={!isMyTurn || !legal}
                                     className={cn(
                                         "ring-offset-4 ring-offset-[#0A0A0B] transition-all duration-300",
@@ -482,6 +507,144 @@ export const GameTable: React.FC = () => {
                         </div>
                     </div>
                  </motion.div>
+            )}
+        </AnimatePresence>
+
+        {/* Floating Utility Buttons */}
+        <div className="absolute bottom-10 right-10 z-[60] flex flex-col gap-4">
+            <button 
+                onClick={() => setShowHistory(true)}
+                className="bg-black/60 backdrop-blur-xl p-4 rounded-2xl text-slate-400 border border-white/5 hover:bg-slate-900 hover:text-white transition-all shadow-2xl group"
+            >
+                <History className="w-5 h-5 group-hover:rotate-[-45deg] transition-transform" />
+            </button>
+            <button 
+                onClick={() => setShowChat(!showChat)}
+                className="bg-black/60 backdrop-blur-xl p-4 rounded-2xl text-slate-400 border border-white/5 hover:bg-slate-900 hover:text-white transition-all shadow-2xl relative group"
+            >
+                <MessageSquare className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                {game.chat.length > 0 && !showChat && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full border-2 border-[#0A0A0B] shadow-lg" />
+                )}
+            </button>
+        </div>
+
+        {/* Tactical Chat Panel */}
+        <AnimatePresence>
+            {showChat && (
+                <motion.div 
+                    initial={{ x: 380 }}
+                    animate={{ x: 0 }}
+                    exit={{ x: 380 }}
+                    className="absolute top-0 right-0 bottom-0 w-80 bg-[#121214]/90 backdrop-blur-2xl border-l border-slate-800 z-[70] flex flex-col shadow-[-40px_0_100px_rgba(0,0,0,0.5)]"
+                >
+                    <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-black/20">
+                        <div>
+                            <h3 className="font-black text-white uppercase tracking-[0.2em] text-[10px]">Tactical Comms</h3>
+                            <p className="text-[9px] text-slate-500 font-bold uppercase mt-1">Status: Encrypted</p>
+                        </div>
+                        <button onClick={() => setShowChat(false)} className="text-slate-500 hover:text-white transition-colors">✕</button>
+                    </div>
+                    <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                        {game.chat.length === 0 && (
+                            <div className="h-full flex flex-col items-center justify-center opacity-20 grayscale">
+                                <MessageSquare size={40} className="mb-4" />
+                                <p className="text-[10px] uppercase font-black tracking-widest text-center">No comms logged</p>
+                            </div>
+                        )}
+                        {game.chat.map((msg) => (
+                            <div key={msg.id} className={cn("flex flex-col", msg.senderId === me.id ? "items-end" : "items-start")}>
+                                <span className="text-[9px] font-bold text-slate-600 mb-1.5 uppercase tracking-tighter">{msg.senderName}</span>
+                                <div className={cn(
+                                    "max-w-[90%] px-4 py-2.5 rounded-2xl text-[12px] font-medium leading-relaxed",
+                                    msg.senderId === me.id ? "bg-emerald-600 text-white rounded-tr-none shadow-lg shadow-emerald-900/10" : "bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700/50"
+                                )}>
+                                    {msg.text}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <form 
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            if (chatInp.trim()) {
+                                sendMessage(chatInp);
+                                setChatInp('');
+                            }
+                        }}
+                        className="p-6 border-t border-slate-800 flex gap-2 bg-black/20"
+                    >
+                        <input 
+                            value={chatInp}
+                            onChange={e => setChatInp(e.target.value)}
+                            placeholder="Type comms..."
+                            className="flex-1 bg-[#0A0A0B] border border-slate-800 rounded-xl px-4 py-3 text-slate-200 text-xs focus:ring-1 focus:ring-emerald-500/50 outline-none transition-all placeholder:text-slate-700"
+                        />
+                        <button className="p-3 bg-emerald-600 hover:bg-emerald-500 transition-colors rounded-xl text-white shadow-xl shadow-emerald-900/20 active:scale-95">
+                            <Send className="w-4 h-4" />
+                        </button>
+                    </form>
+                </motion.div>
+            )}
+        </AnimatePresence>
+
+        {/* Global History Overlay */}
+        <AnimatePresence>
+            {showHistory && (
+                <div className="absolute inset-0 z-[80] flex items-center justify-center p-6">
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowHistory(false)}
+                        className="absolute inset-0 bg-black/80 backdrop-blur-md"
+                    />
+                    <motion.div 
+                        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                        className="relative w-full max-w-lg bg-[#121214] rounded-[2.5rem] border border-slate-800 shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden"
+                    >
+                        <div className="p-8 border-b border-slate-800 flex justify-between items-center bg-white/[0.02]">
+                            <div>
+                                <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Tactical Archives</h3>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase mt-1 tracking-widest">Match Outcome History</p>
+                            </div>
+                            <button onClick={() => setShowHistory(false)} className="bg-slate-800 hover:bg-slate-700 p-2 rounded-xl text-slate-400 transition-colors">✕</button>
+                        </div>
+                        <div className="p-6 max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar">
+                            {matchHistory.length === 0 && (
+                                <div className="py-20 text-center opacity-20">
+                                    <History size={60} className="mx-auto mb-4" />
+                                    <p className="text-xs font-black uppercase tracking-[0.3em]">No archive entries</p>
+                                </div>
+                            )}
+                            {matchHistory.map((h, i) => (
+                                <div key={i} className="bg-[#0A0A0B] p-5 rounded-[1.5rem] border border-slate-800 flex justify-between items-center group hover:border-emerald-500/30 transition-colors">
+                                    <div>
+                                        <div className="text-[9px] font-black text-slate-600 mb-1.5 uppercase tracking-widest">{h.date}</div>
+                                        <div className="font-black text-white uppercase tracking-tighter flex items-center gap-3">
+                                            Outcome: <span className={cn(
+                                                "px-3 py-0.5 rounded-full text-[10px] border",
+                                                h.winner === me.team ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500" : "bg-rose-500/10 border-rose-500/30 text-rose-500"
+                                            )}>
+                                                {h.winner === me.team ? 'VICTORY' : 'DEFEAT'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="text-2xl font-black text-slate-100 font-mono tracking-tighter">
+                                        <span className={h.winner === 0 ? "text-emerald-400" : "text-slate-500"}>{h.score[0]}</span>
+                                        <span className="mx-2 opacity-20">/</span>
+                                        <span className={h.winner === 1 ? "text-emerald-400" : "text-slate-500"}>{h.score[1]}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="p-6 bg-black/20 border-t border-slate-800">
+                             <p className="text-[9px] text-center text-slate-600 font-bold uppercase tracking-[0.2em]">Archive limit: 50 matches</p>
+                        </div>
+                    </motion.div>
+                </div>
             )}
         </AnimatePresence>
       </main>

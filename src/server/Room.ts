@@ -1,6 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
-import { Card, GameState, Phase, Player, PrivatePlayerState, Suit } from '../types.js';
+import { Card, ChatMessage, GameState, Phase, Player, PrivatePlayerState, Suit } from '../types.js';
 import { GameEngine } from './GameEngine.js';
 
 export class Room {
@@ -28,7 +28,8 @@ export class Room {
       winnerTeam: null,
       lastTrick: null,
       lastTrickResult: null,
-      history: []
+      history: [],
+      chat: []
     };
   }
 
@@ -100,17 +101,17 @@ export class Room {
     }
   }
 
-  handleReady(playerId: string) {
+  handleReady(playerId: string, io: Server) {
     const player = this.state.players.find(p => p.id === playerId);
     if (player) {
       player.isReady = true;
       if (this.state.players.length === 4 && this.state.players.every(p => p.isReady)) {
-        this.startGame();
+        this.startGame(io);
       }
     }
   }
 
-  startGame() {
+  startGame(io: Server) {
     this.state.phase = 'TRUMP_CALLING';
     const deck = GameEngine.createDeck();
     
@@ -127,6 +128,9 @@ export class Room {
     this.state.trumpCallerIdx = (this.state.dealerIdx + 1) % 4;
     this.state.currentTurnIdx = this.state.trumpCallerIdx;
     this.addLog('Game started! Waiting for trump call...');
+
+    this.broadcastState(io);
+    this.checkBotTurn(io);
   }
 
   private remainingDeck: Card[] = [];
@@ -196,12 +200,18 @@ export class Room {
     this.state.lastTrickResult = null;
     this.state.currentTurnIdx = winnerPlayer.pos;
 
+    this.broadcastState(io);
+    this.checkBotTurn(io);
+
     if (this.state.players[0].handSize === 0) {
-      this.resolveRound();
+      this.resolveRound(io);
+    } else {
+        this.broadcastState(io);
+        this.checkBotTurn(io);
     }
   }
 
-  private resolveRound() {
+  private resolveRound(io: Server) {
     const [t0, t1] = this.state.tricksWon;
     let roundWinner = -1;
     let pts = 0;
@@ -234,6 +244,10 @@ export class Room {
         this.state.dealerIdx = (this.state.dealerIdx + 1) % 4;
         this.state.tricksWon = [0, 0];
         this.state.trumpSuit = null;
+
+        if (this.state.players.every(p => p.isReady)) {
+          this.startGame(io);
+        }
     }
   }
 
@@ -242,33 +256,51 @@ export class Room {
     if (this.state.history.length > 50) this.state.history.shift();
   }
 
-  fillWithBots(io: Server) {
+  addChatMessage(senderId: string, text: string) {
+    const player = this.state.players.find(p => p.id === senderId) || this.state.spectators.find(s => s.id === senderId);
+    if (!player) return;
+
+    const message: ChatMessage = {
+        id: uuidv4(),
+        senderId,
+        senderName: player.name,
+        text: text.slice(0, 140), // Character limit
+        timestamp: Date.now()
+    };
+
+    this.state.chat.push(message);
+    if (this.state.chat.length > 50) this.state.chat.shift();
+  }
+
+  fillWithBots(io: Server, difficulty?: BotDifficulty, style?: string) {
     while (this.state.players.length < 4) {
-        this.addBot();
+        this.addBot(io, difficulty, style);
     }
     this.broadcastState(io);
   }
 
-  addBot() {
+  addBot(io: Server, difficulty: BotDifficulty = 'TACTICAL', style: string = 'AGENT') {
     if (this.state.players.length >= 4) return;
     const botId = `bot-${uuidv4()}`;
     const pos = this.state.players.length;
     const bot: Player = {
       id: botId,
-      name: `Agent ${pos + 1}`,
+      name: `${style} ${pos + 1}`,
       isReady: true,
       handSize: 0,
       team: (pos % 2 === 0 ? 0 : 1) as 0 | 1,
       pos,
       isConnected: true,
-      isBot: true
+      isBot: true,
+      botDifficulty: difficulty,
+      botStyle: style
     };
     this.state.players.push(bot);
-    this.addLog(`${bot.name} (Bot) joined.`);
+    this.addLog(`${bot.name} (Bot, ${difficulty}) joined.`);
     
     // Auto-start if 4 players and all ready
     if (this.state.players.length === 4 && this.state.players.every(p => p.isReady)) {
-        this.startGame();
+        this.startGame(io);
     }
   }
 
@@ -276,9 +308,11 @@ export class Room {
     const currentPlayer = this.state.players[this.state.currentTurnIdx];
     if (!currentPlayer || !currentPlayer.isBot) return;
 
+    // Simulate thinking time
+    const delay = this.state.phase === 'TRUMP_CALLING' ? 2000 : (1000 + Math.random() * 1000);
+    await new Promise(resolve => setTimeout(resolve, delay));
+
     if (this.state.phase === 'TRUMP_CALLING') {
-      // Small delay for trump calling
-      await new Promise(resolve => setTimeout(resolve, 2000));
       const hand = this.playerHands.get(currentPlayer.id)!;
       const suitCounts = hand.reduce((acc, card) => {
         acc[card.suit] = (acc[card.suit] || 0) + 1;
@@ -289,7 +323,6 @@ export class Room {
       this.broadcastState(io);
       this.checkBotTurn(io);
     } else if (this.state.phase === 'PLAYING') {
-      await new Promise(resolve => setTimeout(resolve, 1200 + Math.random() * 800));
       const hand = this.playerHands.get(currentPlayer.id)!;
       const cardToPlay = GameEngine.getBotPlay(hand, this.state.currentTrick, this.state.trumpSuit, this.state.currentTurnIdx, this.state.players);
       
